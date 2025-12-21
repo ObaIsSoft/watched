@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watched - Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .glass {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+    </style>
+</head>
+
+<body class="h-screen flex items-center justify-center relative overflow-hidden">
+    <!-- Background Blobs -->
+    <div
+        class="absolute top-0 left-1/4 w-96 h-96 bg-purple-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob">
+    </div>
+    <div
+        class="absolute bottom-0 right-1/4 w-96 h-96 bg-indigo-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000">
+    </div>
+
+    <div class="glass p-10 rounded-3xl w-full max-w-md text-center z-10 shadow-2xl">
+        <h1
+            class="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 mb-2">
+            Watched</h1>
+        <p class="text-slate-400 mb-8">Your ultimate tracking companion.</p>
+
+        <div id="g_id_onload" data-client_id="725965614246-s6r1sh4m1i9mocm8pa5ag1e67asd2ev3.apps.googleusercontent.com"
+            data-callback="handleCredentialResponse" data-auto_prompt="false">
+        </div>
+        <div class="g_id_signin flex justify-center" data-type="standard" data-size="large" data-theme="filled_black"
+            data-text="sign_in_with" data-shape="pill" data-logo_alignment="left">
+        </div>
+
+        <p class="mt-8 text-xs text-slate-500">By proceeding, you agree to join the coolest leaderboard in town.</p>
+    </div>
+
+    <script>
+        async function handleCredentialResponse(response) {
+            console.log("Encoded JWT ID token: " + response.credential);
+
+            try {
+                // Exchange Google Token for App Token
+                const res = await fetch('/api/auth/google', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ credential: response.credential })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    localStorage.setItem('access_token', data.access_token);
+                    localStorage.setItem('user_info', JSON.stringify(data.user));
+
+                    // Set Cookie for Extension
+                    document.cookie = `access_token=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
+
+                    window.location.href = '/history';
+                } else {
+                    alert('Login failed. Please try again.');
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Connection error.');
+            }
+        }
+    </script>
+</body>
+
+</html>

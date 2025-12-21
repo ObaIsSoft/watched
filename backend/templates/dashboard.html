@@ -1,0 +1,1705 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watchlist 2025</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Tailwind CSS (via CDN for simplicity, verify with user if local is needed) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @keyframes swingIn {
+            0% {
+                opacity: 0;
+                transform: rotate(-10deg) scale(0.9);
+            }
+
+            100% {
+                opacity: 1;
+                transform: rotate(0) scale(1);
+            }
+        }
+
+        @keyframes fadeInUp {
+            0% {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-swing {
+            animation: swingIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        .animate-up {
+            opacity: 0;
+            animation: fadeInUp 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+
+        .delay-100 {
+            animation-delay: 100ms;
+        }
+
+        .delay-200 {
+            animation-delay: 200ms;
+        }
+
+        .delay-300 {
+            animation-delay: 300ms;
+        }
+
+        .delay-400 {
+            animation-delay: 400ms;
+        }
+
+        .delay-500 {
+            animation-delay: 500ms;
+        }
+
+        .delay-600 {
+            animation-delay: 600ms;
+        }
+
+        /* Glassmorphism */
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-dark {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+
+
+        @keyframes fadeInScale {
+            0% {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .animate-swing {
+            animation: swingIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+
+        .animate-pop {
+            animation: fadeInScale 0.5s ease-out forwards;
+        }
+
+        .delay-100 {
+            animation-delay: 100ms;
+        }
+
+        .delay-200 {
+            animation-delay: 200ms;
+        }
+
+        .delay-300 {
+            animation-delay: 300ms;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .card-hover:hover {
+            transform: translateY(-2px);
+            transition: all 0.2s ease;
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen pb-12">
+
+    <!-- Navbar -->
+    <nav class="glass sticky top-0 z-50 border-b border-slate-700/50">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center text-white font-bold">W
+                </div>
+                <span class="text-xl font-bold tracking-tight">Watched</span>
+            </div>
+            <div class="flex gap-4 items-center">
+                <!-- Notifications -->
+                <div class="relative group">
+                    <button id="notif-btn" class="p-2 text-slate-400 hover:text-white relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
+                            <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
+                        </svg>
+                        <span id="notif-badge"
+                            class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full hidden"></span>
+                    </button>
+                    <div class="absolute right-0 top-full mt-2 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-xl p-2 hidden group-hover:block z-50"
+                        id="notif-dropdown">
+                        <div
+                            class="text-xs font-bold text-slate-500 px-2 py-1 uppercase tracking-wider flex justify-between">
+                            <span>Notifications</span>
+                            <button onclick="clearNotifications()"
+                                class="text-indigo-400 hover:text-white">Clear</button>
+                        </div>
+                        <div id="notif-list" class="max-h-60 overflow-y-auto space-y-1 mt-1">
+                            <div class="text-center text-slate-600 text-xs py-4">No new updates</div>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="switchTab('watchlist')"
+                    class="px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors text-white"
+                    id="tab-watchlist">Watchlist</button>
+                <button onclick="switchTab('history')"
+                    class="px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors text-slate-400"
+                    id="tab-history">History</button>
+                <button onclick="switchTab('analytics')"
+                    class="px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors text-slate-400"
+                    id="tab-analytics">Analytics</button>
+                <button onclick="switchTab('social')"
+                    class="px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors text-slate-400"
+                    id="tab-social">Friends</button>
+                <div class="h-6 w-px bg-slate-700 mx-1"></div>
+                <button onclick="switchTab('report')"
+                    class="px-4 py-2 rounded-lg text-sm font-bold bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent hover:opacity-80 transition-opacity"
+                    id="tab-report">2025 WRAPPED</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-6 pt-8">
+
+        <!-- Stats Row -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+            <div class="glass rounded-2xl p-6">
+                <div class="text-slate-400 text-sm font-medium mb-1">Total Watchlist</div>
+                <div class="text-3xl font-bold text-white" id="stat-watchlist">0</div>
+            </div>
+            <div class="glass rounded-2xl p-6">
+                <div class="text-slate-400 text-sm font-medium mb-1">Watched</div>
+                <div class="text-3xl font-bold text-white" id="stat-watched">0</div>
+            </div>
+            <div class="glass rounded-2xl p-6">
+                <div class="text-slate-400 text-sm font-medium mb-1">Hours Watched</div>
+                <div class="text-3xl font-bold text-indigo-400" id="stat-hours">0h</div>
+                <div class="text-xs text-slate-500 mt-1" id="stat-hours-breakdown">Movies vs TV</div>
+            </div>
+            <div class="glass rounded-2xl p-6">
+                <div class="text-slate-400 text-sm font-medium mb-1">Avg Time to Watch</div>
+                <div class="text-3xl font-bold text-purple-400" id="stat-velocity">0h</div>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div id="view-watchlist" class="view-section">
+            <h2 class="text-2xl font-semibold mb-6 flex items-center gap-2">
+                <span class="w-1 h-6 bg-indigo-500 rounded-full"></span>
+                Up Next
+            </h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6" id="watchlist-grid">
+                <!-- Items injected here -->
+            </div>
+        </div>
+
+        <div id="view-history" class="view-section hidden">
+            <h2 class="text-2xl font-semibold mb-6 flex items-center gap-2">
+                <span class="w-1 h-6 bg-emerald-500 rounded-full"></span>
+                Completed
+            </h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6" id="history-grid">
+                <!-- Items injected here -->
+            </div>
+        </div>
+
+        <div id="view-analytics" class="view-section hidden">
+            <!-- Charts Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <!-- 1. Genres -->
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="text-lg font-semibold mb-4 text-slate-300">Top Genres</h3>
+                    <div class="h-48">
+                        <canvas id="genreChart"></canvas>
+                    </div>
+                </div>
+                <!-- 2. Format Split -->
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="text-lg font-semibold mb-4 text-slate-300">Movies vs Series</h3>
+                    <div class="h-48">
+                        <canvas id="formatChart"></canvas>
+                    </div>
+                </div>
+                <!-- 3. Activity -->
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="text-lg font-semibold mb-4 text-slate-300">Watch Activity</h3>
+                    <div class="h-48">
+                        <canvas id="activityChart"></canvas>
+                    </div>
+                </div>
+                <!-- 4. Eras -->
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="text-lg font-semibold mb-4 text-slate-300">Eras (Decades)</h3>
+                    <div class="h-48">
+                        <canvas id="eraChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NEW: Bi-Weekly Sprint Report -->
+            <div class="glass rounded-2xl p-8 mb-8 relative overflow-hidden">
+                <div class="absolute top-0 right-0 p-32 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="relative z-10">
+                    <h3 class="text-xl font-bold mb-6 flex items-center gap-2">
+                        <span class="text-blue-400">⚡</span> SPRINT REPORT (Last 14 Days)
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <div class="flex items-baseline gap-2 mb-2">
+                                <span class="text-5xl font-black text-white" id="sprint-hours">0</span>
+                                <span class="text-xl text-slate-400">hours</span>
+                            </div>
+                            <p class="text-sm text-slate-400 mb-6" id="sprint-label">You've been active!</p>
+                            <div class="flex gap-4 text-center">
+                                <div class="bg-white/5 rounded-lg p-3 flex-1">
+                                    <div class="text-2xl font-bold text-white" id="sprint-count">0</div>
+                                    <div class="text-xs text-slate-500 uppercase tracking-wider">Items</div>
+                                </div>
+                                <div class="bg-white/5 rounded-lg p-3 flex-1">
+                                    <div class="text-2xl font-bold text-white" id="sprint-minutes">0</div>
+                                    <div class="text-xs text-slate-500 uppercase tracking-wider">Minutes</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-black/20 rounded-xl p-4">
+                            <h4 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3">Checklist</h4>
+                            <ul class="space-y-2 max-h-48 overflow-y-auto" id="sprint-list">
+                                <!-- Injected -->
+                                <li class="text-slate-500 italic text-sm">No activity in this sprint.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommendations -->
+            <div class="glass rounded-2xl p-8">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-semibold">Recommendations</h3>
+                    <button onclick="refreshRecommendations()"
+                        class="px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition-colors flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3" />
+                        </svg>
+                        Refresh
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="recommendations-list">
+                    <!-- Recs injected here -->
+                </div>
+            </div>
+        </div>
+
+        <div id="view-social" class="view-section hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Left: Search & Your Friends -->
+                <div class="space-y-6">
+                    <!-- Profile Card -->
+                    <div class="glass rounded-2xl p-6 text-center relative group">
+                        <img src="" id="my-profile-pic"
+                            class="w-20 h-20 rounded-full mx-auto mb-3 border-2 border-indigo-500 shadow-lg">
+                        <h3 class="text-xl font-bold text-white" id="my-profile-name">...</h3>
+                        <p class="text-sm text-slate-400 mb-4" id="my-profile-bio">No bio yet.</p>
+                        <button onclick="openProfileModal()"
+                            class="text-xs bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full transition-colors text-white">Edit
+                            Profile</button>
+                    </div>
+
+                    <div class="glass rounded-2xl p-6">
+                        <h3 class="text-lg font-semibold mb-4 text-white">Friend Activity</h3>
+                        <div class="relative">
+                            <input type="text" id="user-search-input" placeholder="Search by name..."
+                                class="w-full bg-slate-800 border-none rounded-lg py-3 px-4 text-white focus:ring-2 focus:ring-indigo-500 pl-10"
+                                onkeyup="handleUserSearch(this.value)">
+
+                        </div>
+                        <div id="user-search-results" class="mt-4 space-y-2 max-h-60 overflow-y-auto hidden">
+                            <!-- Results -->
+                        </div>
+
+                        <!-- NEW: Following List -->
+                        <div class="mt-8 border-t border-white/10 pt-6">
+                            <h4 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Your Friends
+                            </h4>
+                            <div id="following-list" class="space-y-3">
+                                <!-- Injected -->
+                                <div class="text-slate-500 text-xs italic">Loading friends...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Activity Feed -->
+                <div class="lg:col-span-2">
+                    <h3 class="text-xl font-bold mb-6 flex items-center gap-2">
+                        Friend Activity
+                    </h3>
+                    <div class="space-y-4" id="social-feed-list">
+                        <!-- Feed Items -->
+                        <div class="text-center text-slate-500 py-10">Follow friends to see what they're watching!</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-leaderboard" class="view-section hidden">
+            <div class="glass rounded-2xl p-8 overflow-hidden">
+                <h3 class="text-lg font-semibold mb-6 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="text-yellow-400">
+                        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
+                        <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
+                        <path d="M4 22h16"></path>
+                        <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path>
+                        <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path>
+                        <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path>
+                    </svg>
+                    Global Rankings
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="text-slate-400 border-b border-slate-700">
+                                <th class="p-4 font-medium">Rank</th>
+                                <th class="p-4 font-medium">Watcher</th>
+                                <th class="p-4 font-medium">Time</th>
+                                <th class="p-4 font-medium">Vibe</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-list">
+                            <!-- Injected -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-report" class="view-section hidden">
+            <!-- Wrapped Content -->
+            <div class="max-w-md mx-auto space-y-6 pb-20 pt-4">
+
+                <!-- Intro Card -->
+                <div
+                    class="animate-up aspect-[4/5] bg-gradient-to-br from-indigo-600 via-purple-700 to-fuchsia-600 rounded-[2rem] p-8 flex flex-col justify-between shadow-2xl shadow-purple-900/50 relative overflow-hidden group">
+                    <div
+                        class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20 mix-blend-overlay">
+                    </div>
+                    <div
+                        class="absolute -top-24 -right-24 w-64 h-64 bg-pink-500 rounded-full blur-[80px] opacity-40 group-hover:opacity-60 transition-opacity duration-1000">
+                    </div>
+                    <div class="relative z-10">
+                        <div
+                            class="text-xs font-bold tracking-[0.3em] text-white/70 uppercase mb-2 border-b border-white/10 pb-2 flex justify-between items-center">
+                            <span>2025 Seasonal Report</span>
+                            <span id="report-rank"
+                                class="bg-white/20 px-2 py-0.5 rounded text-[10px] tracking-normal">Top 1%</span>
+                        </div>
+                        <h2 class="text-6xl font-black text-white leading-[0.9] tracking-tighter mt-2">
+                            YOUR<br>WATCH<br>VIBE</h2>
+                    </div>
+                    <div class="relative z-10">
+                        <div class="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-white/60"
+                            id="report-vibe">...</div>
+                        <div class="text-white/80 font-medium mt-2 flex items-center gap-2">
+                            <span class="bg-white/20 p-1 rounded-full text-xs">✨</span> is your top genre
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trivia Card -->
+                <div class="animate-up delay-100 bg-white text-black p-6 rounded-3xl shadow-xl transform rotate-1 hover:rotate-0 transition-transform duration-300 relative overflow-hidden"
+                    id="report-trivia-card">
+                    <div class="absolute -right-4 -bottom-8 text-[10rem] text-slate-100 font-black z-0 leading-none">?
+                    </div>
+                    <div class="relative z-10">
+                        <h3 class="text-[0.6rem] font-black uppercase tracking-widest text-indigo-600 mb-2">Did You
+                            Know?</h3>
+                        <p class="text-2xl font-bold leading-tight" id="report-trivia-text">Populating your trivia...
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Stats Grid -->
+                <div
+                    class="animate-up delay-200 bg-gradient-to-br from-emerald-500 to-teal-700 rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden">
+                    <div class="absolute -right-10 -top-10 w-40 h-40 bg-white/20 rounded-full blur-3xl"></div>
+                    <h3 class="font-black text-3xl mb-8 uppercase tracking-tight opacity-90">The Stats</h3>
+                    <div class="space-y-4 relative z-10">
+                        <div class="flex justify-between items-end border-b border-white/20 pb-2">
+                            <span class="font-bold text-xs tracking-widest uppercase opacity-70">Minutes</span>
+                            <span class="font-black text-4xl" id="report-minutes">0</span>
+                        </div>
+                        <div class="flex justify-between items-end border-b border-white/20 pb-2">
+                            <span class="font-bold text-xs tracking-widest uppercase opacity-70">Movies</span>
+                            <span class="font-black text-4xl" id="report-movies">0</span>
+                        </div>
+                        <div class="flex justify-between items-end border-b border-white/20 pb-2">
+                            <span class="font-bold text-xs tracking-widest uppercase opacity-70">Series</span>
+                            <span class="font-black text-4xl" id="report-series">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top Lists (Spotify Style) -->
+                <div
+                    class="animate-up delay-300 bg-black/40 backdrop-blur-md border border-white/10 rounded-3xl p-8 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-24 bg-yellow-500 rounded-full blur-[80px] opacity-20"></div>
+                    <h3 class="relative z-10 font-bold text-2xl mb-6 text-white flex items-center gap-3">
+                        <span
+                            class="flex items-center justify-center w-8 h-8 bg-yellow-400 text-black text-sm font-black rounded-full">#1</span>
+                        Top Genres
+                    </h3>
+                    <ul class="relative z-10 space-y-3" id="report-genres-list"></ul>
+                </div>
+
+                <!-- Top Studios -->
+                <div
+                    class="animate-up delay-400 bg-black/40 backdrop-blur-md border border-white/10 rounded-3xl p-8 relative overflow-hidden">
+                    <div class="absolute bottom-0 left-0 p-24 bg-blue-500 rounded-full blur-[80px] opacity-20"></div>
+                    <h3 class="relative z-10 font-bold text-2xl mb-6 text-white flex items-center gap-3">
+                        <span
+                            class="flex items-center justify-center w-8 h-8 bg-blue-400 text-black text-sm font-black rounded-full">#2</span>
+                        Favorite Studios
+                    </h3>
+                    <ul class="relative z-10 space-y-3" id="report-studios-list"></ul>
+                </div>
+
+                <!-- Top Cast -->
+                <div
+                    class="animate-up delay-500 bg-black/40 backdrop-blur-md border border-white/10 rounded-3xl p-8 relative overflow-hidden">
+                    <div class="absolute top-0 left-0 p-24 bg-purple-500 rounded-full blur-[80px] opacity-20"></div>
+                    <h3 class="relative z-10 font-bold text-2xl mb-6 text-white flex items-center gap-3">
+                        <span
+                            class="flex items-center justify-center w-8 h-8 bg-purple-400 text-black text-sm font-black rounded-full">#3</span>
+                        Starring Agents
+                    </h3>
+                    <ul class="relative z-10 space-y-3" id="report-cast-list"></ul>
+                </div>
+
+                <!-- Vibe Cloud -->
+                <div class="animate-up delay-600 glass rounded-3xl p-6 relative overflow-hidden text-center">
+                    <h3 class="font-black text-xl mb-4 text-white uppercase tracking-widest opacity-80">Sub-Genre DNA
+                    </h3>
+                    <div class="flex flex-wrap gap-2 justify-center" id="report-keywords-list"></div>
+                </div>
+
+                <!-- Temporal Cards (Month & Day) -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div
+                        class="animate-up delay-600 bg-gradient-to-br from-orange-400 to-red-500 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
+                        <div class="absolute -right-4 -bottom-4 text-8xl opacity-20">📅</div>
+                        <h3 class="font-bold text-xs uppercase tracking-widest opacity-80 mb-2">Peak Month</h3>
+                        <div class="text-3xl font-black" id="report-month">...</div>
+                        <div class="text-sm opacity-90 mt-1" id="report-month-count">0 items</div>
+                    </div>
+                    <div
+                        class="animate-up delay-600 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
+                        <div class="absolute -right-4 -bottom-4 text-8xl opacity-20">⏰</div>
+                        <h3 class="font-bold text-xs uppercase tracking-widest opacity-80 mb-2">Fav Day</h3>
+                        <div class="text-3xl font-black" id="report-day">...</div>
+                        <div class="text-sm opacity-90 mt-1" id="report-day-count">0 items</div>
+                    </div>
+                </div>
+
+                <!-- Global Rank Card -->
+                <div
+                    class="animate-up delay-600 aspect-square bg-white text-black rounded-3xl p-8 flex flex-col items-center justify-center text-center shadow-2xl relative overflow-hidden">
+                    <div
+                        class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-50">
+                    </div>
+                    <div class="relative z-10">
+                        <div class="text-sm font-bold uppercase tracking-widest text-slate-500 mb-2">Global Ranking
+                        </div>
+                        <div class="text-9xl font-black tracking-tighter text-black" id="report-rank">#?</div>
+                        <div class="mt-4 inline-block bg-black text-white px-4 py-1 rounded-full text-sm font-bold">Top
+                            1% Viewer</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- DRILL DOWN MODAL -->
+        <div id="drilldown-modal"
+            class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
+            <div
+                class="bg-[#1a1a1a] w-full max-w-4xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col shadow-2xl border border-white/10">
+                <div class="p-6 border-b border-white/10 flex justify-between items-center bg-black/40">
+                    <h2 class="text-2xl font-black text-white flex items-center gap-3">
+                        <span id="drilldown-title">Details</span>
+                    </h2>
+                    <button onclick="document.getElementById('drilldown-modal').classList.add('hidden')"
+                        class="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white">
+                        ✕
+                    </button>
+                </div>
+                <div class="p-6 overflow-y-auto flex-1 custom-scrollbar">
+                    <div id="drilldown-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        <!-- Injected -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+
+    </main>
+
+
+
+    <!-- MANUAL ADD MODAL -->
+    <div id="add-modal"
+        class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-sm p-6 relative animate-pop">
+            <button onclick="closeAddModal()" class="absolute top-4 right-4 text-slate-500 hover:text-white">✕</button>
+            <h2 class="text-xl font-bold text-white mb-4">Add to Watchlist</h2>
+            <div class="space-y-4">
+                <div class="relative">
+                    <input type="text" id="add-search" placeholder="Search for Movie or TV Show..."
+                        class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500 mb-2"
+                        oninput="debounceSearchv2()">
+                    <!-- Results Dropdown -->
+                    <div id="add-search-results"
+                        class="absolute left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden z-50">
+                    </div>
+                </div>
+
+                <!-- Selected Item Preview -->
+                <div id="selected-preview"
+                    class="hidden flex items-center gap-3 bg-slate-800/50 p-3 rounded-lg border border-slate-700">
+                    <img id="selected-poster" src="" class="w-10 h-14 rounded object-cover shadow">
+                    <div>
+                        <h4 id="selected-title" class="font-bold text-white text-sm"></h4>
+                        <div class="text-xs text-slate-400" id="selected-meta"></div>
+                    </div>
+                    <button onclick="clearSelection()" class="ml-auto text-slate-400 hover:text-white">✕</button>
+                </div>
+
+                <input type="hidden" id="selected-tmdb-id">
+                <input type="hidden" id="selected-media-type">
+
+                <div class="flex gap-2">
+                    <select id="add-status" class="bg-slate-800 border-slate-700 rounded-lg p-3 text-white w-full"
+                        onchange="toggleDateInput()">
+                        <option value="watchlist">Watchlist</option>
+                        <option value="watched">Watched</option>
+                    </select>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs text-slate-500">Importing from Google? <br> Go to <a
+                            href="https://google.com/save" target="_blank"
+                            class="text-indigo-400 hover:text-indigo-300">google.com/save</a> and use the extension
+                        button.</p>
+                </div>
+                <div id="add-date-container" class="hidden">
+                    <label class="text-xs text-slate-400 block mb-1">Date Watched (Optional)</label>
+                    <input type="date" id="add-date"
+                        class="w-full bg-slate-800 border-slate-700 rounded-lg p-3 text-white">
+                </div>
+                <button onclick="submitManualAdd()"
+                    class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-lg shadow-lg shadow-indigo-500/20 transition-all">
+                    Add Selection to Library
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- PROFILE MODAL (RESTORED) -->
+    <div id="profile-modal"
+        class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-sm p-6 relative">
+            <button onclick="document.getElementById('profile-modal').classList.add('hidden')"
+                class="absolute top-4 right-4 text-slate-500 hover:text-white">✕</button>
+            <h2 class="text-xl font-bold text-white mb-4">Edit Profile</h2>
+
+            <label class="text-xs text-slate-400 block mb-1">Profile Picture</label>
+            <input type="file" id="edit-pic-file" accept="image/*"
+                class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white text-xs mb-2 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700">
+            <input type="text" id="edit-pic"
+                class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500 mb-4 text-xs"
+                placeholder="Or paste image link...">
+
+            <label class="text-xs text-slate-400 block mb-1">Bio</label>
+            <textarea id="edit-bio" rows="3"
+                class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500 mb-4"
+                placeholder="Tell us your movie taste..."></textarea>
+
+            <button onclick="saveProfile()"
+                class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-lg shadow-lg shadow-indigo-500/20 transition-all">
+                Save Profile
+            </button>
+        </div>
+    </div>
+
+    </div>
+
+    <!-- DATE PICKER MODAL for "Mark Watched" -->
+    <div id="date-modal"
+        class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[70] hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-sm p-6 relative animate-pop">
+            <button onclick="closeDateModal()" class="absolute top-4 right-4 text-slate-500 hover:text-white">✕</button>
+            <h2 class="text-xl font-bold text-white mb-4">When did you watch this?</h2>
+            <div class="space-y-4">
+                <input type="date" id="status-date"
+                    class="w-full bg-slate-800 border-slate-700 rounded-lg p-3 text-white">
+                <div class="flex gap-2">
+                    <button onclick="confirmMarkWatched()"
+                        class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-lg">Confirm</button>
+                    <button onclick="skipDateMarkWatched()"
+                        class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-lg">Today</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- API Client ---
+        const API_URL = 'http://localhost:8000';
+
+        async function authFetch(endpoint, options = {}) {
+            const token = localStorage.getItem('access_token');
+            if (!token) return handleLogout();
+
+            const headers = options.headers || {};
+            headers['Authorization'] = `Bearer ${token}`;
+
+            const config = {
+                ...options,
+                headers: headers
+            };
+
+            const res = await fetch(`${API_URL}${endpoint}`, config);
+
+            if (res.status === 401) {
+                handleLogout();
+                return null;
+            }
+            return res;
+        }
+
+        async function fetchHistory() {
+            const res = await authFetch('/api/history');
+            if (!res) return [];
+            return await res.json();
+        }
+
+        async function fetchStats() {
+            const res = await authFetch('/api/stats');
+            if (!res) return null;
+            return await res.json();
+        }
+
+        let currentMarkId = null;
+
+        function openDateModal(id) {
+            currentMarkId = id;
+            document.getElementById('status-date').valueAsDate = new Date();
+            document.getElementById('date-modal').classList.remove('hidden');
+        }
+
+        function closeDateModal() {
+            document.getElementById('date-modal').classList.add('hidden');
+            currentMarkId = null;
+        }
+
+        async function confirmMarkWatched() {
+            if (!currentMarkId) return;
+            const dateVal = document.getElementById('status-date').value;
+            const date = dateVal ? new Date(dateVal).toISOString() : null;
+            await markWatchedApi(currentMarkId, date);
+            closeDateModal();
+        }
+
+        async function skipDateMarkWatched() {
+            if (!currentMarkId) return;
+            await markWatchedApi(currentMarkId, null); // Backend defaults to Now
+            closeDateModal();
+        }
+
+        async function markWatchedApi(id, dateStr) {
+            await authFetch(`/api/entry/${id}/status`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'watched', watched_at: dateStr })
+            });
+            init(); // Refresh
+        }
+
+        // Manual Add Logic Update
+        document.getElementById('add-status').addEventListener('change', (e) => {
+            const dateContainer = document.getElementById('add-date-container');
+            if (e.target.value === 'watched') {
+                dateContainer.classList.remove('hidden');
+                document.getElementById('add-date').valueAsDate = new Date();
+            } else {
+                dateContainer.classList.add('hidden');
+            }
+        });
+
+        // Search Logic
+        let searchTimeout;
+        function debounceSearchv2() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(doSearchv2, 500);
+        }
+
+        async function doSearchv2() {
+            const query = document.getElementById('add-search').value;
+            if (query.length < 2) {
+                document.getElementById('add-search-results').classList.add('hidden');
+                return;
+            }
+            // Use existing search endpoint but logic is different. Wait, current endpoint /api/social/search is for USERS.
+            // I need a TMDB search endpoint. Let's assume one exists or mock it with a client call? 
+            // Wait, I can only call backend. I will use a simple client-side fetch to TMDB? 
+            // NO, CORS issues. AND API Key exposure.
+            // I MUST ADD A BACKEND ENDPOINT FOR SEARCH.
+            // For now, I'll update the JS and then go fix Backend.
+
+            const res = await authFetch(`/api/tmdb/search?q=${encodeURIComponent(query)}`);
+            if (!res) return;
+            const data = await res.json();
+
+            const dropdown = document.getElementById('add-search-results');
+            dropdown.innerHTML = '';
+
+            if (data.length > 0) {
+                dropdown.classList.remove('hidden');
+                data.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'p-3 hover:bg-white/10 cursor-pointer flex gap-3 items-center border-b border-white/5';
+                    const img = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : 'https://via.placeholder.com/40x60';
+                    div.innerHTML = `
+                        <img src="${img}" class="w-8 h-12 object-cover rounded">
+                        <div>
+                            <div class="font-bold text-sm text-white">${item.title || item.name}</div>
+                            <div class="text-xs text-slate-400">${item.media_type.toUpperCase()} • ${(item.release_date || item.first_air_date || '').substring(0, 4)}</div>
+                        </div>
+                    `;
+                    div.onclick = () => selectItem(item);
+                    dropdown.appendChild(div);
+                });
+            } else {
+                dropdown.classList.add('hidden');
+            }
+        }
+
+        function selectItem(item) {
+            document.getElementById('selected-tmdb-id').value = item.id;
+            document.getElementById('selected-media-type').value = item.media_type;
+            document.getElementById('selected-title').textContent = item.title || item.name;
+            document.getElementById('selected-poster').src = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : '';
+            document.getElementById('selected-meta').textContent = `${item.media_type.toUpperCase()} • ${(item.release_date || item.first_air_date || '').substring(0, 4)}`;
+
+            document.getElementById('selected-preview').classList.remove('hidden');
+            document.getElementById('add-search').value = '';
+            document.getElementById('add-search-results').classList.add('hidden');
+        }
+
+        function clearSelection() {
+            document.getElementById('selected-tmdb-id').value = '';
+            document.getElementById('selected-preview').classList.add('hidden');
+        }
+
+        async function submitManualAdd() {
+            const tmdbId = document.getElementById('selected-tmdb-id').value;
+            const type = document.getElementById('selected-media-type').value;
+            const status = document.getElementById('add-status').value;
+            const dateVal = document.getElementById('add-date').value;
+
+            if (!tmdbId) return alert("Please search and select a movie/show first!");
+
+            // Reuse Log Logic but with proper payload
+            // Wait, previous /api/log utilized a server-side search by title. 
+            // I should update /api/log to accept ID directly for precision.
+            // Or just stick to title if I don't change backend API.
+            // BETTER: Use /api/log but pass 'id' in payload if supported? 
+            // Current Backend: search_tmdb(request.title, request.media_type) -> First result.
+            // This is imprecise. I should Update Backend to accept `tmdb_id` optional override.
+
+            const payload = {
+                title: document.getElementById('selected-title').textContent, // Fallback
+                media_type: type,
+                status: status,
+                tmdb_id: parseInt(tmdbId) // New field I need to handle in Backend
+            };
+
+            if (status === 'watched' && dateVal) {
+                payload.watched_at = new Date(dateVal).toISOString();
+            }
+
+            const res = await authFetch('/api/log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res && res.ok) {
+                closeAddModal();
+                clearSelection();
+                const data = await res.json();
+                alert(data.note || `Added ${data.saved}`);
+                init();
+            } else {
+                alert("Failed to add");
+            }
+        }
+
+        async function deleteEntry(id) {
+            if (!confirm("Are you sure you want to delete this item?")) return;
+            await authFetch(`/api/entry/${id}`, {
+                method: 'DELETE'
+            });
+            init(); // Refresh
+        }
+
+        async function fetchRecommendations() {
+            const res = await authFetch('/api/recommendations');
+            if (!res) return [];
+            return await res.json();
+        }
+
+        async function refreshRecommendations() {
+            const container = document.getElementById('recommendations-list');
+            // Optimistic / Loading UI
+            container.innerHTML = '<div class="col-span-full text-center py-10 text-slate-500 animate-pulse">Consulting the oracle...</div>';
+
+            const recs = await fetchRecommendations();
+
+            if (recs.length === 0) {
+                container.innerHTML = '<div class="col-span-full text-center py-10 text-slate-500">No recommendations found. Watch more stuff!</div>';
+                return;
+            }
+
+            container.innerHTML = recs.map(i => renderRecCard(i)).join('');
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('user_info');
+            document.cookie = "access_token=; path=/; max-age=0";
+            window.location.href = '/login';
+        }
+
+        function renderCard(item, isWatchlist = false) {
+            const div = document.createElement('div');
+            // Matching existing styles
+            div.className = 'glass rounded-xl p-3 card-hover flex flex-col h-full relative group';
+
+            const posterUrl = item.poster_path
+                ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
+                : 'https://via.placeholder.com/500x750?text=No+Image';
+
+            const dateStr = item.watched_at ? new Date(item.watched_at).toLocaleDateString() : 'Recently';
+            const btnAction = isWatchlist
+                ? `<button onclick="openDateModal(${item.tmdb_id})" class="mt-3 w-full py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition-colors">Mark Watched</button>`
+                : `<div class="mt-3 text-xs text-slate-500 text-center">Watched on ${dateStr}</div>`;
+
+            div.innerHTML = `
+                <div class="relative aspect-[2/3] mb-3 overflow-hidden rounded-lg">
+                    <img src="${posterUrl}" class="object-cover w-full h-full transform group-hover:scale-105 transition-transform duration-500" alt="${item.title}">
+                    <div class="absolute top-2 right-2 bg-black/60 px-2 py-1 rounded text-xs backdrop-blur-sm self-start">${item.year || 'N/A'}</div>
+                    <button onclick="deleteEntry(${item.tmdb_id})" class="absolute top-2 left-2 bg-red-500/80 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm" title="Delete">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-medium text-white leading-tight mb-1 truncate" title="${item.title}">${item.title}</h3>
+                    <p class="text-xs text-slate-400 capitalize">
+                        ${item.media_type || 'movie'} • 
+                        ${item.media_type === 'tv' ? (item.total_episodes + ' eps') : (item.runtime + 'm')}
+                    </p>
+                </div>
+                ${btnAction}
+            `;
+            // Add Animation Class
+            div.classList.add('animate-swing');
+            return div.outerHTML;
+        }
+        function renderRecCard(item) {
+            const posterUrl = item.poster_path
+                ? `https://image.tmdb.org/t/p/w200${item.poster_path}`
+                : 'https://via.placeholder.com/200x300';
+
+            return `
+                <div class="flex gap-4 items-center p-3 hover:bg-slate-800/50 rounded-lg transition-colors cursor-pointer" onclick="window.open('https://google.com/search?q=${item.title}', '_blank')">
+                    <img src="${posterUrl}" class="w-12 h-18 rounded object-cover">
+                    <div>
+                        <h4 class="font-medium text-white">${item.title || item.name}</h4>
+                        <p class="text-xs text-slate-400">Match score: ${Math.round(item.vote_average * 10)}%</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderFeedItem(item) {
+            const commentsHtml = item.comments.map(c => `
+                <div class="text-xs mt-1"><span class="font-bold text-slate-300">${c.user}:</span> <span class="text-slate-400">${c.content}</span></div>
+            `).join('');
+
+            return `
+                <div class="glass rounded-xl p-4 flex gap-4 items-start animate-swing group/item">
+                    <div class="relative flex-shrink-0">
+                        <img src="${item.poster_path ? 'https://image.tmdb.org/t/p/w200' + item.poster_path : 'https://via.placeholder.com/100'}" 
+                             class="w-16 h-24 object-cover rounded shadow-lg">
+                        <div class="absolute -bottom-2 -right-2 w-8 h-8 rounded-full border-2 border-slate-900 overflow-hidden bg-slate-800">
+                             <img src="${item.user_picture}" class="w-full h-full object-cover">
+                        </div>
+                    </div>
+                    <div class="flex-1 min-w-0 pt-1">
+                        <div class="flex justify-between items-start">
+                             <div>
+                                <p class="text-sm text-slate-400 mb-0.5"><span class="font-bold text-white">${item.user_name}</span> watched</p>
+                                <h4 class="font-bold text-lg text-white leading-tight truncate px-0">${item.title}</h4>
+                             </div>
+                             <span class="text-xs text-slate-500 whitespace-nowrap">${new Date(item.date).toLocaleDateString()}</span>
+                        </div>
+                        
+                        <!-- Interactions Panel -->
+                        <div class="mt-3 flex gap-2 items-center">
+                            <button onclick="toggleLike(${item.id})" class="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-colors ${item.is_liked ? 'bg-pink-500/20 text-pink-400' : 'bg-white/5 hover:bg-white/10 text-slate-400'}">
+                                <span>${item.is_liked ? '❤️' : '♡'}</span> ${item.like_count || 0}
+                            </button>
+                            <button onclick="toggleRoastBox(${item.id})" class="px-3 py-1 bg-white/5 hover:bg-white/10 text-slate-400 rounded-full text-xs font-medium transition-colors">
+                                🔥 Roast
+                            </button>
+                        </div>
+
+                        <!-- Comments Section -->
+                        <div class="mt-3 space-y-2 ${item.comments.length > 0 ? '' : 'hidden'}">
+                            ${commentsHtml}
+                        </div>
+                        
+                        <!-- Roast Input (Hidden by default) -->
+                        <div id="roast-box-${item.id}" class="hidden mt-3 flex gap-2">
+                             <input type="text" id="roast-input-${item.id}" placeholder="Spill the tea..." class="flex-1 bg-slate-800 border-none rounded-lg py-1 px-3 text-xs text-white">
+                             <button onclick="submitRoast(${item.id})" class="text-xs bg-indigo-600 text-white px-3 rounded-lg">Send</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- Social Actions ---
+        async function toggleLike(id) {
+            await authFetch(`/api/social/like/${id}`, { method: 'POST' });
+            loadFeed(); // Refresh to show update
+        }
+
+        function toggleRoastBox(id) {
+            document.getElementById(`roast-box-${id}`).classList.toggle('hidden');
+        }
+
+        async function submitRoast(id) {
+            const input = document.getElementById(`roast-input-${id}`);
+            const content = input.value;
+            if (!content) return;
+
+            await authFetch(`/api/social/comment/${id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content })
+            });
+            input.value = '';
+            loadFeed();
+        }
+
+        // --- Profile ---
+        function openProfileModal() {
+            const info = JSON.parse(localStorage.getItem('user_info') || '{}');
+            document.getElementById('edit-bio').value = info.bio || '';
+            document.getElementById('edit-pic').value = info.picture || '';
+            document.getElementById('profile-modal').classList.remove('hidden');
+        }
+
+        async function saveProfile() {
+            const bio = document.getElementById('edit-bio').value;
+            let pic = document.getElementById('edit-pic').value;
+            const fileInput = document.getElementById('edit-pic-file');
+
+            // Upload File if selected
+            if (fileInput.files.length > 0) {
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+
+                // Use raw fetch for upload to let browser handle boundary
+                const token = localStorage.getItem('access_token');
+                try {
+                    const uploadRes = await fetch('/api/users/upload-avatar', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: formData
+                    });
+
+                    if (uploadRes.ok) {
+                        const data = await uploadRes.json();
+                        pic = data.url;
+                    } else {
+                        alert("Image upload failed");
+                        return;
+                    }
+                } catch (e) {
+                    console.error("Upload Error", e);
+                    alert("Upload error");
+                    return;
+                }
+            }
+
+            const res = await authFetch('/api/users/me', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bio: bio, picture: pic })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                // Update Local Storage
+                const info = JSON.parse(localStorage.getItem('user_info') || '{}');
+                info.bio = data.bio;
+                info.picture = data.picture;
+                localStorage.setItem('user_info', JSON.stringify(info));
+
+                // Update UI
+                updateProfileUI(info);
+                document.getElementById('profile-modal').classList.add('hidden');
+            }
+        }
+
+        function updateProfileUI(user) {
+            if (!user) return;
+            document.getElementById('my-profile-pic').src = user.picture;
+            document.getElementById('my-profile-name').innerText = user.name;
+            document.getElementById('my-profile-bio').innerText = user.bio || "No bio yet.";
+        }
+
+        // --- Notifications ---
+        async function pollNotifications() {
+            const res = await authFetch('/api/notifications');
+            if (res && res.ok) {
+                const notifs = await res.json();
+                const btn = document.getElementById('notif-badge');
+                if (notifs.length > 0) {
+                    btn.classList.remove('hidden');
+                    const list = document.getElementById('notif-list');
+                    list.innerHTML = notifs.map(n => `
+                        <div class="px-2 py-2 hover:bg-slate-800 rounded text-xs">
+                            <p class="text-white">${n.message}</p>
+                            <span class="text-slate-500 text-[10px]">${new Date(n.created_at).toLocaleTimeString()}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    btn.classList.add('hidden');
+                }
+            }
+        }
+
+        async function clearNotifications() {
+            await authFetch('/api/notifications/clear', { method: 'POST' });
+            document.getElementById('notif-badge').classList.add('hidden');
+            document.getElementById('notif-list').innerHTML = '<div class="text-center text-slate-600 text-xs py-4">All clear</div>';
+        }
+
+        // Polling
+        setInterval(pollNotifications, 30000); // Every 30s
+        setTimeout(pollNotifications, 2000); // Initial check
+
+        // Init Profile
+        const uInfo = JSON.parse(localStorage.getItem('user_info'));
+        updateProfileUI(uInfo);
+
+        // Date Gate for Wrapped (Dec only)
+        const isDec = new Date().getMonth() === 11; // 11 = Dec
+        if (!isDec) {
+            document.getElementById('tab-report').classList.add('hidden');
+        }
+
+        async function init() {
+            const [history, stats] = await Promise.all([fetchHistory(), fetchStats()]);
+
+            // 1. Update Stats
+            document.getElementById('stat-watchlist').innerText = stats.counts.watchlist;
+            document.getElementById('stat-watched').innerText = stats.counts.watched;
+
+            // Format hours nicer
+            // Format hours nicer
+            const totalHours = Math.round(stats.total_runtime_minutes / 60);
+            const movieHours = Math.round(stats.split_runtime.movies / 60);
+            const seriesHours = Math.round(stats.split_runtime.series / 60);
+
+            document.getElementById('stat-hours').innerText = totalHours + 'h';
+            document.getElementById('stat-hours-breakdown').innerHTML = `
+                <span class="text-indigo-300">${movieHours}h Movies</span> • 
+                <span class="text-purple-300">${seriesHours}h Series</span>
+            `;
+
+            document.getElementById('stat-velocity').innerText = stats.avg_hours_to_watch + 'h';
+
+            // 2. Grids
+            const watchlist = history.filter(i => i.status === 'watchlist');
+            const watched = history.filter(i => i.status === 'watched');
+
+            document.getElementById('watchlist-grid').innerHTML = watchlist.map(i => renderCard(i, true)).join('');
+            document.getElementById('history-grid').innerHTML = watched.map(i => renderCard(i, false)).join('');
+
+            // 3. Charts
+
+            // Helper to safe destroy
+            const destroyChart = (id) => {
+                const chartStatus = Chart.getChart(id);
+                if (chartStatus != undefined) {
+                    chartStatus.destroy();
+                }
+            };
+
+            // A. Genres (Doughnut)
+            if (stats.top_genres.length > 0) {
+                destroyChart('genreChart');
+                new Chart(document.getElementById('genreChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: stats.top_genres.map(g => g[0]),
+                        datasets: [{
+                            data: stats.top_genres.map(g => g[1]),
+                            backgroundColor: ['#818cf8', '#c084fc', '#34d399', '#f472b6', '#60a5fa'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#94a3b8', boxWidth: 12 } } } }
+                });
+            }
+
+            // B. Format Split (Pie)
+            destroyChart('formatChart');
+            new Chart(document.getElementById('formatChart'), {
+                type: 'pie',
+                data: {
+                    labels: ['Movies', 'Series'],
+                    datasets: [{
+                        data: [stats.counts.movies, stats.counts.series],
+                        backgroundColor: ['#6366f1', '#a855f7'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#94a3b8', boxWidth: 12 } } } }
+            });
+
+            // C. Activity (Line)
+            destroyChart('activityChart');
+            new Chart(document.getElementById('activityChart'), {
+                type: 'line',
+                data: {
+                    labels: stats.monthly_activity.map(a => a[0]),
+                    datasets: [{
+                        label: 'Watched',
+                        data: stats.monthly_activity.map(a => a[1]),
+                        borderColor: '#38bdf8',
+                        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', precision: 0 } },
+                        x: { grid: { display: false }, ticks: { color: '#64748b' } }
+                    }
+                }
+            });
+
+            // D. Eras (Bar)
+            destroyChart('eraChart');
+            new Chart(document.getElementById('eraChart'), {
+                type: 'bar',
+                data: {
+                    labels: stats.decade_distribution.map(d => d[0]),
+                    datasets: [{
+                        label: 'Items',
+                        data: stats.decade_distribution.map(d => d[1]),
+                        backgroundColor: '#fcd34d',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', precision: 0 } },
+                        x: { grid: { display: false }, ticks: { color: '#64748b' } }
+                    }
+                }
+            });
+        }
+
+        // --- Social Logic ---
+
+        function handleUserSearch(query) {
+            clearTimeout(searchTimeout);
+            if (!query) {
+                document.getElementById('user-search-results').classList.add('hidden');
+                return;
+            }
+            searchTimeout = setTimeout(async () => {
+                const res = await authFetch(`/api/social/search?q=${encodeURIComponent(query)}`);
+                const users = await res.json();
+
+                const container = document.getElementById('user-search-results');
+                container.classList.remove('hidden');
+
+                if (users.length === 0) {
+                    container.innerHTML = '<div class="text-slate-500 text-sm text-center">No users found</div>';
+                    return;
+                }
+
+                container.innerHTML = users.map(u => `
+                <div class="flex items-center justify-between p-2 hover:bg-white/5 rounded-lg transition-colors">
+                        <div class="flex items-center gap-3">
+                            <img src="${u.picture}" class="w-8 h-8 rounded-full">
+                            <span class="font-medium text-sm text-white">${u.name}</span>
+                        </div>
+                        <button onclick="toggleFollow(${u.id}, ${u.is_following})" 
+                            class="px-3 py-1 text-xs font-bold rounded-full transition-all ${u.is_following ? 'bg-slate-700 text-slate-300' : 'bg-indigo-600 text-white'}">
+                            ${u.is_following ? 'Following' : 'Follow'}
+                        </button>
+                    </div>
+                `).join('');
+            }, 300);
+        }
+
+        async function toggleFollow(id, isFollowing) {
+            const endpoint = isFollowing ? 'unfollow' : 'follow';
+            await authFetch(`/api/social/${endpoint}/${id}`, { method: 'POST' });
+            // Refresh search results to update button state
+            const val = document.getElementById('user-search-input').value;
+            handleUserSearch(val);
+            // Refresh feed
+            loadFeed();
+            loadFollowing(); // Refresh friends list too
+        }
+
+        async function loadFollowing() {
+            const res = await authFetch('/api/social/following');
+            if (!res.ok) return;
+            const users = await res.json();
+            const container = document.getElementById('following-list');
+
+            if (users.length === 0) {
+                container.innerHTML = '<div class="text-slate-500 text-xs italic">You are not following anyone yet.</div>';
+                return;
+            }
+
+            container.innerHTML = users.map(u => `
+                <div class="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg transition-colors group">
+                    <img src="${u.picture}" class="w-8 h-8 rounded-full border border-slate-700">
+                    <div class="flex-1 overflow-hidden">
+                         <div class="truncate text-sm font-bold text-slate-300 group-hover:text-white">${u.name}</div>
+                    </div>
+                    <button onclick="toggleFollow(${u.id}, true)" class="text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all font-bold text-xs" title="Unfollow">
+                        ✕
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        async function loadFeed() {
+            const res = await authFetch('/api/social/feed');
+            if (!res) return;
+            const feed = await res.json();
+            const container = document.getElementById('social-feed-list');
+
+            if (feed.length === 0) {
+                container.innerHTML = '<div class="flex flex-col items-center justify-center py-10 opacity-50"><p>It\'s quiet here. Follow people to see activity!</p></div>';
+                return;
+            }
+            container.innerHTML = feed.map(item => renderFeedItem(item)).join('');
+        }
+
+        // --- Tabs ---
+        // --- Tabs ---
+        function switchTab(tab) {
+            switchView(tab);
+        }
+
+        // Global switcher for Bottom Nav & Tabs
+        function switchView(viewName) {
+            // Hide all views
+            ['watchlist', 'history', 'analytics', 'report', 'social', 'leaderboard'].forEach(t => {
+                const el = document.getElementById(`view-${t}`);
+                if (el) el.classList.add('hidden');
+            });
+
+            // Show Target
+            const target = document.getElementById(`view-${viewName}`);
+            if (target) {
+                target.classList.remove('hidden');
+                // Trigger animations/data loads for specific views
+                if (viewName === 'analytics') {
+                    loadRecs();
+                    loadSprint();
+                }
+                if (viewName === 'social') {
+                    loadFeed();
+                    loadFollowing();
+                }
+                if (viewName === 'report') {
+                    loadReport();
+                    confetti({
+                        particleCount: 150,
+                        spread: 70,
+                        origin: { y: 0.6 },
+                        colors: ['#6366f1', '#ec4899', '#a855f7', '#fbbf24']
+                    });
+                }
+            }
+
+            // Update Active State (Nav)
+            // ... (optional visual update for nav buttons)
+        }
+
+
+        async function loadReport() {
+            const stats = await fetchStats();
+            if (!stats) return;
+
+            // 1. Vibe
+            const topGenre = stats.top_genres.length > 0 ? stats.top_genres[0][0] : 'Explorer';
+            document.getElementById('report-vibe').innerText = topGenre;
+
+            // 2. Numbers
+            document.getElementById('report-minutes').innerText = stats.total_runtime_minutes.toLocaleString();
+            document.getElementById('report-movies').innerText = stats.counts.movies;
+            document.getElementById('report-series').innerText = stats.counts.series;
+
+            // NEW: Temporal Stats
+            if (stats.top_month) {
+                document.getElementById('report-month').innerText = stats.top_month[0];
+                document.getElementById('report-month-count').innerText = `${stats.top_month[1]} items`;
+            }
+            if (stats.top_day) {
+                document.getElementById('report-day').innerText = stats.top_day[0];
+                document.getElementById('report-day-count').innerText = `${stats.top_day[1]} items`;
+            }
+
+            // Helper for Lists (Clickable)
+            const renderList = (items, colorClass, category) => {
+                return items.slice(0, 5).map((item, i) => `
+                    <li onclick="openDrillDown('${category}', '${item[0].replace(/'/g, "\\'")}')" class="flex items-center gap-4 group cursor-pointer p-2 rounded-xl hover:bg-white/5 transition-colors">
+                        <span class="font-black text-2xl w-8 text-right text-slate-700 group-hover:${colorClass} transition-colors">${i + 1}</span>
+                        <span class="font-bold text-xl text-slate-300 group-hover:text-white transition-colors truncate flex-1 text-left">${item[0]}</span>
+                        <span class="text-xs font-mono text-slate-500 group-hover:text-white/50">${item[1]}</span>
+                        <span class="opacity-0 group-hover:opacity-100 text-white/50">→</span>
+                    </li>
+                `).join('');
+            };
+
+            // 3. Top Genres
+            document.getElementById('report-genres-list').innerHTML = renderList(stats.top_genres, 'text-yellow-400', 'genre');
+
+            // 4. Top Studios
+            document.getElementById('report-studios-list').innerHTML = renderList(stats.top_studios, 'text-blue-400', 'studio');
+
+            // 5. Top Cast
+            document.getElementById('report-cast-list').innerHTML = renderList(stats.top_cast, 'text-purple-400', 'cast');
+
+            // NEW: Top Directors (Crew)
+            // Assuming HTML container exists or we inject it into the Cast card or a new one.
+            // For now, let's append it to the Cast list container logic or reuse the Cast card logic if we had distinct slots. 
+            // Wait, I need to add a "Top Crew" section in the HTML grid first?
+            // Actually, I can repurpose the "Studios" section in the HTML if desired, but better to add a new list.
+            // Since I cannot rewrite the entire grid easily in one go, I will inject it dynamically into the report container or replace the "Studios" column if user prefers?
+            // "I cant' find the producer/ director's modal" -> Implies they want it.
+            // I'll create a new section dynamically for now to ensure it appears.
+
+            const crewHTML = `
+                <div class="animate-up delay-300 col-span-1 md:col-span-2 glass rounded-3xl p-6 relative overflow-hidden">
+                    <div class="flex justify-between items-end mb-4 relative z-10">
+                        <div>
+                            <h3 class="text-slate-400 font-bold text-xs uppercase tracking-widest">Top Directors</h3>
+                            <div class="text-3xl font-black text-white">Visionaries</div>
+                        </div>
+                    </div>
+                    <ul class="space-y-4 relative z-10" id="report-crew-list"></ul>
+                </div>
+            `;
+            // Check if we already added it? No.
+            // We need to inject this into the grid. 
+            // Finding the parent grid... `report-studios-list` parent.
+            const studiosCard = document.getElementById('report-studios-list').parentElement.parentElement;
+            if (!document.getElementById('report-crew-list')) {
+                studiosCard.insertAdjacentHTML('afterend', crewHTML);
+            }
+            document.getElementById('report-crew-list').innerHTML = renderList(stats.top_crew || [], 'text-pink-400', 'crew');
+
+            // 6. Keywords (Cloud)
+            document.getElementById('report-keywords-list').innerHTML = stats.top_keywords.map((k, i) => {
+                const sizes = ['text-3xl', 'text-2xl', 'text-xl', 'text-lg', 'text-base'];
+                const size = sizes[i] || 'text-sm';
+                const opacity = Math.max(0.4, 1 - (i * 0.1));
+                return `<span class="${size} font-bold text-white" style="opacity: ${opacity}">${k[0]}</span>`;
+            }).join(' <span class="text-slate-600">•</span> ');
+
+            // 7. Trivia
+            if (stats.trivia && stats.trivia.length > 0) {
+                const randomTrivia = stats.trivia[Math.floor(Math.random() * stats.trivia.length)];
+                document.getElementById('report-trivia-text').innerText = randomTrivia;
+            } else {
+                document.getElementById('report-trivia-card').classList.add('hidden');
+            }
+
+            // 8. Persona & Ranking Logic
+            const topG = stats.top_genres.map(g => g[0]);
+            let persona = "Movie Buff";
+            let rank = "Top 5% Viewer";
+
+            if (topG.includes('Science Fiction') && topG.includes('Thriller')) persona = "Chaos Rider";
+            else if (topG.includes('Romance') && topG.includes('Drama')) persona = "Heartbreaker";
+            else if (topG.includes('Action') && topG.includes('Adventure')) persona = "Adrenaline Junkie";
+            else if (topG.includes('Comedy')) persona = "Laugh Factory";
+            else if (topG.includes('Horror')) persona = "Scream Queen";
+
+            const hours = Math.round(stats.total_runtime_minutes / 60);
+            const primaryGenre = topG.length > 0 ? topG[0] : 'Movie';
+            if (hours > 100) rank = `Top 1% ${primaryGenre} Fan`;
+            else if (hours > 50) rank = `Top 5% ${primaryGenre} Fan`;
+            else rank = `Top 20% ${primaryGenre} Fan`;
+
+            document.getElementById('report-vibe').innerText = persona;
+            document.getElementById('report-rank').innerText = rank;
+
+            // Trigger Confetti
+            confetti({
+                particleCount: 150,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#6366f1', '#a855f7', '#ec4899']
+            });
+            setTimeout(() => {
+                confetti({
+                    particleCount: 50,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0 }
+                });
+                confetti({
+                    particleCount: 50,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1 }
+                });
+            }, 500);
+
+            // 8. Countries
+            const countryMap = {
+                "US": "🇺🇸 Hollywood", "GB": "🇬🇧 UK", "NG": "🇳🇬 Nollywood", "IN": "🇮🇳 Bollywood",
+                "KR": "🇰🇷 K-Drama", "JP": "🇯🇵 Anime", "FR": "🇫🇷 France", "Unknown": "🏳️ Earth"
+            };
+            document.getElementById('report-countries-list').innerHTML = stats.top_countries.slice(0, 4).map(c => {
+                const name = countryMap[c[0]] || `🏳️ ${c[0]}`;
+                return `
+                    <div class="bg-white/10 backdrop-blur-md rounded-xl p-4 flex flex-col">
+                        <span class="text-2xl mb-1">${name.split(' ')[0]}</span>
+                        <span class="font-bold text-lg leading-none">${name.split(' ').slice(1).join(' ')}</span>
+                        <span class="text-xs opacity-70 mt-1">${c[1]} Titles</span>
+                    </div>
+                `;
+            }).join('');
+
+            // 9. Rank (Mock for now, will implement actual logic later)
+            document.getElementById('report-rank').innerText = '#1';
+        }
+
+        async function loadRecs() {
+            const recs = await fetchRecommendations();
+            document.getElementById('recommendations-list').innerHTML = recs.map(renderRecCard).join('');
+        }
+
+        // Auto-Refresh Logic
+        function startAutoRefresh() {
+            setInterval(async () => {
+                // Background update without full UI flicker?
+                if (document.visibilityState === 'visible') {
+                    const stats = await authFetch('/api/stats');
+                    if (stats) {
+                        const currentCount = parseInt(document.getElementById('stat-watchlist').innerText || '0') +
+                            parseInt(document.getElementById('stat-watched').innerText || '0');
+
+                        const newCount = stats.counts.watchlist + stats.counts.watched;
+
+                        // Only full refresh if data changed
+                        if (newCount !== currentCount) {
+                            console.log("Data changed, refreshing UI...");
+                            init();
+                        }
+                    }
+                }
+            }, 5000); // Check every 5s
+        }
+
+        // Manual Add Functions
+        function openAddModal() { document.getElementById('add-modal').classList.remove('hidden'); }
+
+        async function openDrillDown(category, value) {
+            const modal = document.getElementById('drilldown-modal');
+            const grid = document.getElementById('drilldown-grid');
+            const title = document.getElementById('drilldown-title');
+
+            // Set Title
+            title.innerText = `${value} (${category})`;
+
+            // Show Loading
+            modal.classList.remove('hidden');
+            grid.innerHTML = '<div class="col-span-full text-center py-20 text-white/50 animate-pulse">Digging through the archives...</div>';
+
+            // Fetch
+            try {
+                const res = await authFetch(`/api/stats/details?category=${category}&value=${encodeURIComponent(value)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.length === 0) {
+                        grid.innerHTML = '<div class="col-span-full text-center py-20 text-white/50">No items found (ghost data?)</div>';
+                    } else {
+                        grid.innerHTML = data.map(i => renderRecCard(i)).join(''); // Reuse rec card renderer
+                    }
+                }
+            } catch (e) {
+                grid.innerHTML = '<div class="col-span-full text-center py-20 text-red-400">Error fetching details.</div>';
+            }
+        }
+        function closeAddModal() { document.getElementById('add-modal').classList.add('hidden'); }
+
+        async function submitManualAdd() {
+            const title = document.getElementById('add-title').value;
+            const type = document.getElementById('add-type').value;
+            const status = document.getElementById('add-status').value;
+
+            if (!title) return alert("Title required");
+
+            const btn = document.querySelector('#add-modal button');
+            btn.innerText = "Searching & Adding...";
+            btn.disabled = true;
+
+            try {
+                const res = await authFetch('/api/log', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: title,
+                        media_type: type,
+                        status: status
+                    })
+                });
+
+                if (res && res.ok) {
+                    alert("Added successfully!");
+                    closeAddModal();
+                    document.getElementById('add-title').value = '';
+                    init();
+                } else {
+                    alert("Failed to find content. Try exact name.");
+                }
+            } catch (e) {
+                alert("Error: " + e);
+            } finally {
+                btn.innerText = "Add Content";
+                btn.disabled = false;
+            }
+        }
+
+        // Init
+
+        function toggleDateInput() {
+            const status = document.getElementById('add-status').value;
+            const dateContainer = document.getElementById('add-date-container');
+            if (status === 'watched') {
+                dateContainer.classList.remove('hidden');
+            } else {
+                dateContainer.classList.add('hidden');
+            }
+        }
+        // Sync Token to Cookie for Extension
+        const token = localStorage.getItem('access_token');
+        if (token) {
+            document.cookie = `access_token=${token}; path=/; max-age=86400; SameSite=Lax`;
+        }
+
+        switchTab('watchlist'); // Default tab
+        init();
+        startAutoRefresh();
+        async function loadSprint() {
+            const res = await authFetch('/api/stats/sprint');
+            if (!res.ok) return;
+            const data = await res.json();
+
+            document.getElementById('sprint-hours').innerText = data.total_hours;
+            document.getElementById('sprint-count').innerText = data.total_count;
+            document.getElementById('sprint-minutes').innerText = data.total_minutes;
+
+            const list = document.getElementById('sprint-list');
+            if (data.items.length === 0) {
+                list.innerHTML = '<li class="text-slate-500 italic text-sm">No watching in last 14 days.</li>';
+                return;
+            }
+
+            list.innerHTML = data.items.map(i => `
+                <li class="flex items-center gap-3 p-2 hover:bg-white/5 rounded transition-colors group cursor-pointer" onclick="this.classList.toggle('opacity-50'); this.classList.toggle('line-through')">
+                    <div class="w-4 h-4 rounded-full border border-blue-500/50 flex items-center justify-center group-hover:bg-blue-500 transition-colors">
+                        <div class="w-2 h-2 bg-white rounded-full opacity-0 group-hover:opacity-100"></div>
+                    </div>
+                    <span class="text-sm text-slate-300 group-hover:text-white truncate flex-1">${i.title}</span>
+                    <span class="text-xs text-slate-600">${new Date(i.watched_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                </li>
+            `).join('');
+        }
+    </script>
+</body>
+
+</html>
