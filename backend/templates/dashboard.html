@@ -805,7 +805,7 @@
             localStorage.removeItem('user_info');
 
             // Clear Cookie (set max-age=0)
-            document.cookie = "access_token=; path=/; max-age=0; SameSite=Lax; Secure";
+            document.cookie = "access_token=; path=/; max-age=0; SameSite=None; Secure";
             document.cookie = "access_token=; path=/; max-age=0"; // Fallback for stricter paths
 
             // Redirect
