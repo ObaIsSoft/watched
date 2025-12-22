@@ -230,9 +230,7 @@ run_migrations()
 
 
 
-from sqlalchemy import text
-Base.metadata.create_all(bind=engine) # This creates new tables like 'followers' automatically
-run_migrations()
+
 
 # --- REPAIR UTILS ---
 def get_series_runtime_sync(tmdb_id, seasons):
@@ -335,19 +333,7 @@ def repair_data():
 
 
 
-# --- FASTAPI APP ---
-app = FastAPI()
-
-# Allow Chrome Extension to hit localhost
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 from fastapi.staticfiles import StaticFiles
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
 class LogRequest(BaseModel):
     title: str
@@ -1378,99 +1364,7 @@ def get_following(db: Session = Depends(get_db), current_user: User = Depends(ge
 
 
 
-# --- INTERACTION API ---
-def create_notification(db, user_id, type, message, ref_id=None):
-    if not user_id: return
-    n = Notification(user_id=user_id, type=type, message=message, ref_id=ref_id)
-    db.add(n)
-    db.commit()
 
-@app.post("/api/social/like/{history_id}")
-def toggle_like(history_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    item = db.query(WatchHistory).filter(WatchHistory.id == history_id).first()
-    if not item: raise HTTPException(404, "Item not found")
-    
-    existing = db.query(Like).filter(Like.user_id == current_user.id, Like.history_id == history_id).first()
-    
-    if existing:
-        db.delete(existing)
-        status = "unliked"
-    else:
-        new_like = Like(user_id=current_user.id, history_id=history_id)
-        db.add(new_like)
-        status = "liked"
-        # Notify owner if not self
-        if item.user_id != current_user.id:
-            create_notification(db, item.user_id, 'like', f"{current_user.name} liked your watch of {item.title}", history_id)
-            
-    db.commit()
-    return {"status": status}
-
-@app.post("/api/social/comment/{history_id}")
-def add_comment(history_id: int, request: CommentRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    item = db.query(WatchHistory).filter(WatchHistory.id == history_id).first()
-    if not item: raise HTTPException(404, "Item not found")
-    
-    comment = Comment(user_id=current_user.id, history_id=history_id, content=request.content)
-    db.add(comment)
-    db.commit()
-    
-    # Notify
-    if item.user_id != current_user.id:
-        create_notification(db, item.user_id, 'comment', f"{current_user.name} roasted: {request.content}", history_id)
-        
-    return {"status": "commented"}
-
-@app.get("/api/notifications")
-def get_notifications(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    notifs = db.query(Notification).filter(Notification.user_id == current_user.id, Notification.read == False).order_by(Notification.created_at.desc()).all()
-    return [{"id": n.id, "message": n.message, "type": n.type, "ref_id": n.ref_id, "created_at": n.created_at} for n in notifs]
-
-@app.post("/api/notifications/clear")
-def clear_notifications(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    db.query(Notification).filter(Notification.user_id == current_user.id, Notification.read == False).update({"read": True})
-    db.commit()
-    return {"status": "cleared"}
-
-@app.get("/api/social/feed")
-def get_friend_feed(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # 1. Get IDs of people I follow
-    following_ids = [f.followed_id for f in current_user.following]
-    if not following_ids:
-        return []
-        
-    # 2. Get their recent watch history
-    feed = db.query(WatchHistory).filter(
-        WatchHistory.user_id.in_(following_ids),
-        WatchHistory.status == 'watched'
-    ).order_by(WatchHistory.watched_at.desc()).limit(20).all()
-    
-    # 3. Format with interaction data
-    result = []
-    for item in feed:
-        # Check if I liked it
-        # This is N+1 query, but fine for MVP (limit 20)
-        is_liked = db.query(Like).filter(Like.user_id == current_user.id, Like.history_id == item.id).first() is not None
-        like_count = db.query(Like).filter(Like.history_id == item.id).count()
-        comments = db.query(Comment).filter(Comment.history_id == item.id).order_by(Comment.created_at.asc()).all()
-        
-        c_list = [{"user": c.user.name, "content": c.content} for c in comments]
-        
-        result.append({
-            "id": item.id, 
-            "user_name": item.user.name,
-            "user_picture": item.user.picture,
-            "title": item.title,
-            "poster_path": item.poster_path,
-            "rating": 5, 
-            "date": item.watched_at.isoformat() if item.watched_at else None,
-            "is_liked": is_liked,
-            "like_count": like_count,
-            "comments": c_list
-        })
-    return result
-
-    return result
 
 # --- INTERACTION API ---
 def create_notification(db, user_id, type, message, ref_id=None):
