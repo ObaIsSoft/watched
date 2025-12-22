@@ -964,7 +964,8 @@
 
     <script>
         // --- API Client ---
-        const API_URL = 'http://localhost:8000';
+        // Use relative path for production compatibility (works on localhost too)
+        const API_URL = '';
 
         async function authFetch(endpoint, options = {}) {
             const token = localStorage.getItem('access_token');
