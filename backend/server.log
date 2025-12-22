@@ -1324,3 +1324,7 @@
 2025-12-22 14:57:37,219 - INFO - HTTP Request: GET https://api.themoviedb.org/3/movie/1233413/recommendations?api_key=331904c8f8fb8f3fbe3e59cf24566a89 "HTTP/1.1 200 OK"
 2025-12-22 14:57:37,543 - INFO - HTTP Request: GET https://api.themoviedb.org/3/movie/13483/recommendations?api_key=331904c8f8fb8f3fbe3e59cf24566a89 "HTTP/1.1 200 OK"
 2025-12-22 14:57:37,873 - INFO - HTTP Request: GET https://api.themoviedb.org/3/movie/98/recommendations?api_key=331904c8f8fb8f3fbe3e59cf24566a89 "HTTP/1.1 200 OK"
+2025-12-22 16:58:32,265 - INFO - User Obafemi logging: 'Heads of State'
+2025-12-22 16:58:33,179 - INFO - HTTP Request: GET https://api.themoviedb.org/3/search/movie?api_key=331904c8f8fb8f3fbe3e59cf24566a89&query=Heads+of+State&year=2025 "HTTP/1.1 200 OK"
+2025-12-22 16:58:33,251 - INFO - User Obafemi logging: 'Heads of State'
+2025-12-22 16:58:33,944 - INFO - HTTP Request: GET https://api.themoviedb.org/3/search/movie?api_key=331904c8f8fb8f3fbe3e59cf24566a89&query=Heads+of+State&year=2025 "HTTP/1.1 200 OK"
