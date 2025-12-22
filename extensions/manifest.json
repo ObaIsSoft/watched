@@ -10,7 +10,7 @@
         "cookies"
     ],
     "host_permissions": [
-        "https://watched-app.onrender.com"
+        "https://watched.onrender.com"
     ],
     "action": {
         "default_popup": "popup.html"
