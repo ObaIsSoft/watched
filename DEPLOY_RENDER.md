@@ -40,12 +40,20 @@ Now, deploy the Python app.
     *   `SECRET_KEY`: Generate a random long string (e.g. `openssl rand -hex 32`).
 5.  Click **Create Web Service**.
 
-## 4. Finalize
-Render will now:
-1.  Clone your repo.
-2.  Enter the `backend` folder.
-3.  Install dependencies (including `psycopg2`).
-4.  Start the app.
-5.  Your app automatically detects the Postgres URL and creates the tables (`users`, `history`) on first boot.
+## 4. Finalize & Fix Google Login
+Render will now build your app. Once it is live, you will get a URL like `https://watched-app.onrender.com`.
+
+**⚠️ Important: Fix "Access Blocked" Error**
+Google doesn't know about your new website yet.
+
+1.  Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
+2.  Find your **OAuth 2.0 Client ID** (the one you made for this project).
+3.  Look for **Authorized JavaScript origins**.
+4.  Click **Add URI**.
+5.  Paste your **new Render URL** (e.g., `https://watched-app.onrender.com`).
+    *   *Do NOT put a trailing slash `/` at the end.*
+6.  Click **Save**.
+
+*Note: It may take 5 minutes for Google to update.*
 
 **Done!** visit your `onrender.com` URL.

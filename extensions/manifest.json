@@ -10,7 +10,7 @@
         "cookies"
     ],
     "host_permissions": [
-        "http://localhost:8000/*"
+        "https://watched-app.onrender.com"
     ],
     "action": {
         "default_popup": "popup.html"
