@@ -18,8 +18,9 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
 # --- LOGGING SETUP ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 logging.basicConfig(
-    filename='server.log', 
+    filename=os.path.join(BASE_DIR, 'server.log'), 
     level=logging.INFO, 
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
@@ -34,7 +35,7 @@ GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "725965614246-s6r1sh4m1i9m
 # --- DATABASE SETUP (SQLite) ---
 # --- DATABASE SETUP ---
 # Render/Production provides DATABASE_URL. Local uses SQLite.
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./watched_history.db")
+DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{os.path.join(BASE_DIR, 'watched_history.db')}")
 
 # Fix for Render: Postgres URLs must start with postgresql:// not postgres://
 if DATABASE_URL.startswith("postgres://"):
@@ -82,7 +83,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 
 
 class Follower(Base):
@@ -209,6 +210,13 @@ def run_migrations():
                  logging.info("Migrating DB: Adding country column to users")
                  conn.execute(text("ALTER TABLE users ADD COLUMN country VARCHAR"))
 
+        # Check Notifications Table
+        if inspector.has_table("notifications"):
+             n_cols = [c['name'] for c in inspector.get_columns("notifications")]
+             if 'ref_id' not in n_cols:
+                 logging.info("Migrating DB: Adding ref_id column to notifications")
+                 conn.execute(text("ALTER TABLE notifications ADD COLUMN ref_id INTEGER"))
+
         conn.commit()
     except Exception as e:
         print(f"Migration Warning: {e}")
@@ -218,15 +226,6 @@ def run_migrations():
 # Create Tables
 Base.metadata.create_all(bind=engine)
 run_migrations()
-        
-        if 'ref_id' not in n_cols:
-            logging.info("Migrating DB: Adding ref_id column to notifications")
-            conn.execute(text("ALTER TABLE notifications ADD COLUMN ref_id INTEGER"))
-        
-    except Exception as e:
-        logging.error(f"Migration failed: {e}")
-    finally:
-        conn.close()
 
 
 
@@ -333,7 +332,7 @@ def repair_data():
 
 
 
-from fastapi.staticfiles import StaticFiles
+
 
 class LogRequest(BaseModel):
     title: str
@@ -369,17 +368,17 @@ from fastapi.responses import HTMLResponse
 
 @app.get("/", response_class=HTMLResponse)
 def read_root():
-    with open("templates/dashboard.html", "r") as f:
+    with open(os.path.join(BASE_DIR, "templates/dashboard.html"), "r") as f:
         return f.read()
 
 @app.get("/login", response_class=HTMLResponse)
 def read_login():
-    with open("templates/login.html", "r") as f:
+    with open(os.path.join(BASE_DIR, "templates/login.html"), "r") as f:
         return f.read()
 
 @app.get("/history", response_class=HTMLResponse)
 def read_history():
-    with open("templates/dashboard.html", "r") as f:
+    with open(os.path.join(BASE_DIR, "templates/dashboard.html"), "r") as f:
         return f.read()
 
 
@@ -548,12 +547,13 @@ def get_feed_item(history_id: int, db: Session = Depends(get_db), current_user: 
 @app.post("/api/users/upload-avatar")
 async def upload_avatar(file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
     try:
-        if not os.path.exists("static/uploads"):
-            os.makedirs("static/uploads")
+        upload_dir = os.path.join(BASE_DIR, "static/uploads")
+        if not os.path.exists(upload_dir):
+            os.makedirs(upload_dir)
         
         # Safe filename
         filename = f"user_{current_user.id}_{int(datetime.utcnow().timestamp())}_{file.filename}"
-        filepath = os.path.join("static/uploads", filename)
+        filepath = os.path.join(upload_dir, filename)
         
         with open(filepath, "wb") as buffer:
             import shutil
@@ -1465,19 +1465,19 @@ from fastapi.responses import FileResponse, RedirectResponse
 @app.get("/login")
 @app.get("/login.html")
 async def serve_login():
-    return FileResponse("templates/login.html")
+    return FileResponse(os.path.join(BASE_DIR, "templates/login.html"))
 
 @app.get("/dashboard")
 @app.get("/dashboard.html")
 async def serve_dashboard():
-    return FileResponse("templates/dashboard.html")
+    return FileResponse(os.path.join(BASE_DIR, "templates/dashboard.html"))
 
 @app.get("/")
 async def root():
     return RedirectResponse(url="/dashboard.html")
 
 # Serve other static assets (if any) from template dir as fallback, or strict static
-app.mount("/static", StaticFiles(directory="templates"), name="templates_static")
+
 
 if __name__ == "__main__":
     import uvicorn
