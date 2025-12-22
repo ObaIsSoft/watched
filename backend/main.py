@@ -71,6 +71,19 @@ class User(Base):
 
 # --- Database Setup & Migration ---
 
+app = FastAPI()
+
+# Allow CORS for Extension and Frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # Allow all for now to debug extension issues
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 class Follower(Base):
     __tablename__ = "followers"
@@ -147,56 +160,64 @@ class WatchHistory(Base):
     likes = relationship("Like", backref="history")
 
 # --- MIGRATION UTILS ---
+# --- MIGRATION UTILS ---
+from sqlalchemy import text, inspect
+
 def run_migrations():
-    # Simple migration to add columns if they don't exist
+    # Robust migration that works on both SQLite and Postgres
+    inspector = inspect(engine)
     conn = engine.connect()
     try:
-        # --- History Table ---
-        result = conn.execute(text("PRAGMA table_info(history)"))
-        columns = [row[1] for row in result.fetchall()]
-        
-        # Base cols
-        if 'total_episodes' not in columns:
-            logging.info("Migrating DB: Adding total_episodes column")
-            conn.execute(text("ALTER TABLE history ADD COLUMN total_episodes INTEGER DEFAULT 1"))
-            
-        if 'rating' not in columns:
-            print("Migrating DB: Adding rating column")
-            conn.execute(text("ALTER TABLE history ADD COLUMN rating INTEGER DEFAULT 0"))
-        
-        if 'user_id' not in columns:
-            logging.info("Migrating DB: Adding user_id column")
-            conn.execute(text("ALTER TABLE history ADD COLUMN user_id INTEGER references users(id)"))
+        # Check History Table
+        if inspector.has_table("history"):
+             columns = [c['name'] for c in inspector.get_columns("history")]
+             
+             # Base cols
+             if 'total_episodes' not in columns:
+                 logging.info("Migrating DB: Adding total_episodes column")
+                 conn.execute(text("ALTER TABLE history ADD COLUMN total_episodes INTEGER DEFAULT 1"))
+                 
+             if 'rating' not in columns:
+                 print("Migrating DB: Adding rating column")
+                 conn.execute(text("ALTER TABLE history ADD COLUMN rating INTEGER DEFAULT 0"))
+             
+             if 'user_id' not in columns:
+                 logging.info("Migrating DB: Adding user_id column")
+                 conn.execute(text("ALTER TABLE history ADD COLUMN user_id INTEGER REFERENCES users(id)")) # Standard SQL
 
-        # Metadata Migrations
-        new_cols = ['production_companies', 'cast', 'crew', 'keywords', 'production_countries']
-        for col in new_cols:
-            if col not in columns:
-                logging.info(f"Migrating DB: Adding {col} column")
-                conn.execute(text(f"ALTER TABLE history ADD COLUMN {col} STRING"))
-                
-        # --- Users Table ---
-        result_u = conn.execute(text("PRAGMA table_info(users)"))
-        u_cols = [row[1] for row in result_u.fetchall()]
-        
-        if 'bio' not in u_cols:
-            logging.info("Migrating DB: Adding bio column to users")
-            conn.execute(text("ALTER TABLE users ADD COLUMN bio STRING DEFAULT ''"))
-            
-        if 'city' not in u_cols:
-            logging.info("Migrating DB: Adding city column to users")
-            conn.execute(text("ALTER TABLE users ADD COLUMN city VARCHAR"))
+             # Metadata Migrations
+             new_cols = ['production_companies', 'cast', 'crew', 'keywords', 'production_countries']
+             for col in new_cols:
+                 if col not in columns:
+                     logging.info(f"Migrating DB: Adding {col} column")
+                     # Postgres uses VARCHAR/TEXT, SQLite is loose. 'VARCHAR' is safe.
+                     conn.execute(text(f"ALTER TABLE history ADD COLUMN {col} VARCHAR"))
+                     
+        # Check Users Table
+        if inspector.has_table("users"):
+             u_cols = [c['name'] for c in inspector.get_columns("users")]
+             
+             if 'bio' not in u_cols:
+                 logging.info("Migrating DB: Adding bio column to users")
+                 conn.execute(text("ALTER TABLE users ADD COLUMN bio VARCHAR DEFAULT ''"))
+                 
+             if 'city' not in u_cols:
+                 logging.info("Migrating DB: Adding city column to users")
+                 conn.execute(text("ALTER TABLE users ADD COLUMN city VARCHAR"))
+ 
+             if 'country' not in u_cols:
+                 logging.info("Migrating DB: Adding country column to users")
+                 conn.execute(text("ALTER TABLE users ADD COLUMN country VARCHAR"))
 
-        if 'country' not in u_cols:
-            logging.info("Migrating DB: Adding country column to users")
-            conn.execute(text("ALTER TABLE users ADD COLUMN country VARCHAR"))
+        conn.commit()
+    except Exception as e:
+        print(f"Migration Warning: {e}")
+    finally:
+        conn.close()
 
-        # --- User Notifications Relationship ---
-        # No DB column needed for relationship, but ensuring logic is sound is good.
-        
-        # --- Notifications Table ---
-        result_n = conn.execute(text("PRAGMA table_info(notifications)"))
-        n_cols = [row[1] for row in result_n.fetchall()]
+# Create Tables
+Base.metadata.create_all(bind=engine)
+run_migrations()
         
         if 'ref_id' not in n_cols:
             logging.info("Migrating DB: Adding ref_id column to notifications")
