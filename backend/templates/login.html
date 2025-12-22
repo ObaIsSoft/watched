@@ -64,7 +64,7 @@
                     localStorage.setItem('user_info', JSON.stringify(data.user));
 
                     // Set Cookie for Extension
-                    document.cookie = `access_token=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
+                    document.cookie = `access_token=${data.access_token}; path=/; max-age=86400; SameSite=Lax; Secure`;
 
                     window.location.href = '/dashboard.html';
                 } else {
