@@ -20,7 +20,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     if (!response.ok) {
                         // Check for 401 specifically
                         if (response.status === 401) {
-                            throw new Error("Unauthorized. Please log in at localhost:8000");
+                            throw new Error("Unauthorized. Please log in at https://watched.onrender.com");
                         }
                         const errorData = await response.json().catch(() => ({}));
                         throw new Error(errorData.detail || "Server Error");
