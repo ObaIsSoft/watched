@@ -145,6 +145,65 @@
             -webkit-text-fill-color: transparent;
         }
     </style>
+    </style>
+    <style>
+        /* ... existing styles ... */
+        @keyframes swingIn {
+            0% {
+                opacity: 0;
+                transform: rotate(-10deg) scale(0.9);
+            }
+
+            100% {
+                opacity: 1;
+                transform: rotate(0) scale(1);
+            }
+        }
+
+        @keyframes fadeInUp {
+            0% {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes progress {
+            from {
+                width: 0%;
+            }
+
+            to {
+                width: 100%;
+            }
+        }
+
+        .story-progress-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+            overflow: hidden;
+            flex: 1;
+        }
+
+        .story-progress-fill {
+            height: 100%;
+            background: white;
+            width: 0%;
+        }
+
+        .story-active .story-progress-fill {
+            animation: progress linear forwards;
+        }
+
+        .paused .story-progress-fill {
+            animation-play-state: paused;
+        }
+    </style>
 </head>
 
 <body class="min-h-screen pb-12">
@@ -169,16 +228,18 @@
                         <span id="notif-badge"
                             class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full hidden"></span>
                     </button>
-                    <div class="absolute right-0 top-full mt-2 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-xl p-2 hidden group-hover:block z-50"
-                        id="notif-dropdown">
-                        <div
-                            class="text-xs font-bold text-slate-500 px-2 py-1 uppercase tracking-wider flex justify-between">
-                            <span>Notifications</span>
-                            <button onclick="clearNotifications()"
-                                class="text-indigo-400 hover:text-white">Clear</button>
-                        </div>
-                        <div id="notif-list" class="max-h-60 overflow-y-auto space-y-1 mt-1">
-                            <div class="text-center text-slate-600 text-xs py-4">No new updates</div>
+                    <div class="absolute right-0 top-full -mt-2 pt-4 w-64 hidden group-hover:block z-50"
+                        id="notif-dropdown-wrapper">
+                        <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-xl p-2" id="notif-dropdown">
+                            <div
+                                class="text-xs font-bold text-slate-500 px-2 py-1 uppercase tracking-wider flex justify-between">
+                                <span>Notifications</span>
+                                <button onclick="clearNotifications()"
+                                    class="text-indigo-400 hover:text-white">Clear</button>
+                            </div>
+                            <div id="notif-list" class="max-h-60 overflow-y-auto space-y-1 mt-1">
+                                <div class="text-center text-slate-600 text-xs py-4">No new updates</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -279,6 +340,46 @@
                 </div>
             </div>
 
+            <!-- NEW: Deep Dive Analytics -->
+            <div class="mb-8">
+                <h3 class="text-xl font-bold mb-4 text-white flex items-center gap-2">
+                    <span class="text-purple-400">🧠</span> Deep Dive
+                </h3>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Stats Cards -->
+                    <div class="space-y-4">
+                        <div class="glass rounded-2xl p-6 flex items-center justify-between">
+                            <div>
+                                <div class="text-xs text-slate-400 uppercase tracking-widest mb-1">Completion Rate</div>
+                                <div class="text-3xl font-black text-emerald-400" id="stat-completion">0%</div>
+                            </div>
+                            <div class="text-3xl opacity-20">🎯</div>
+                        </div>
+                        <div class="glass rounded-2xl p-6 flex items-center justify-between">
+                            <div>
+                                <div class="text-xs text-slate-400 uppercase tracking-widest mb-1">Avg Rating</div>
+                                <div class="text-3xl font-black text-yellow-400" id="stat-rating">0.0</div>
+                            </div>
+                            <div class="text-3xl opacity-20">⭐</div>
+                        </div>
+                        <div class="glass rounded-2xl p-6 flex items-center justify-between">
+                            <div>
+                                <div class="text-xs text-slate-400 uppercase tracking-widest mb-1">Masterpieces</div>
+                                <div class="text-3xl font-black text-indigo-400" id="stat-perfect">0</div>
+                            </div>
+                            <div class="text-3xl opacity-20">💎</div>
+                        </div>
+                    </div>
+                    <!-- Runtime Chart -->
+                    <div class="glass rounded-2xl p-6 col-span-2">
+                        <h3 class="text-lg font-semibold mb-4 text-slate-300">Runtime Preference</h3>
+                        <div class="h-64">
+                            <canvas id="runtimeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- NEW: Bi-Weekly Sprint Report -->
             <div class="glass rounded-2xl p-8 mb-8 relative overflow-hidden">
                 <div class="absolute top-0 right-0 p-32 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
@@ -345,7 +446,7 @@
                             class="w-20 h-20 rounded-full mx-auto mb-3 border-2 border-indigo-500 shadow-lg">
                         <h3 class="text-xl font-bold text-white" id="my-profile-name">...</h3>
                         <p class="text-sm text-slate-400 mb-4" id="my-profile-bio">No bio yet.</p>
-                        <button onclick="openProfileModal()"
+                        <button onclick="openEditProfile()"
                             class="text-xs bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full transition-colors text-white">Edit
                             Profile</button>
                     </div>
@@ -565,7 +666,105 @@
             </div>
         </div>
 
-        <!-- DRILL DOWN MODAL -->
+        <!-- DATE / RATING MODAL -->
+        <div id="date-modal"
+            class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-sm p-6 relative animate-pop">
+                <button onclick="document.getElementById('date-modal').classList.add('hidden')"
+                    class="absolute top-4 right-4 text-slate-500 hover:text-white">✕</button>
+                <h2 class="text-xl font-bold text-white mb-4">You watched it?</h2>
+
+                <label class="block text-sm text-slate-400 mb-2">When?</label>
+                <input type="date" id="watched-date-input"
+                    class="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white mb-4 focus:ring-2 focus:ring-indigo-500 outline-none">
+
+                <label class="block text-sm text-slate-400 mb-2">Rate it</label>
+                <div class="flex gap-2 mb-6" id="rating-stars-input">
+                    <button onclick="setRating(1)"
+                        class="text-2xl text-slate-600 hover:text-yellow-400 transition-colors">★</button>
+                    <button onclick="setRating(2)"
+                        class="text-2xl text-slate-600 hover:text-yellow-400 transition-colors">★</button>
+                    <button onclick="setRating(3)"
+                        class="text-2xl text-slate-600 hover:text-yellow-400 transition-colors">★</button>
+                    <button onclick="setRating(4)"
+                        class="text-2xl text-slate-600 hover:text-yellow-400 transition-colors">★</button>
+                    <button onclick="setRating(5)"
+                        class="text-2xl text-slate-600 hover:text-yellow-400 transition-colors">★</button>
+                </div>
+
+                <button onclick="confirmWatch()"
+                    class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-indigo-500/20">
+                    Confirm
+                </button>
+            </div>
+        </div>
+
+        <script>
+            let currentRating = 0;
+            let activeTmdbId = null;
+
+            function setRating(r) {
+                currentRating = r;
+                const btns = document.getElementById('rating-stars-input').children;
+                for (let i = 0; i < 5; i++) {
+                    btns[i].classList.remove('text-yellow-400', 'text-slate-600');
+                    if (i < r) btns[i].classList.add('text-yellow-400');
+                    else btns[i].classList.add('text-slate-600');
+                }
+            }
+
+            function openRateModal(id, title) {
+                // For editing rating of already watched item
+                activeTmdbId = id;
+                document.getElementById('date-modal').classList.remove('hidden');
+                document.querySelector('#date-modal h2').innerText = `Rate ${title}`;
+                // Allow date edit
+                document.getElementById('watched-date-input').classList.remove('hidden');
+            }
+
+            function openDateModal(id) {
+                activeTmdbId = id;
+                document.getElementById('watched-date-input').classList.remove('hidden');
+                document.getElementById('watched-date-input').valueAsDate = new Date();
+                setRating(0);
+                document.getElementById('date-modal').classList.remove('hidden');
+                document.querySelector('#date-modal h2').innerText = "You watched it?";
+            }
+
+            async function confirmWatch() {
+                if (!activeTmdbId) return;
+                const dateVal = document.getElementById('watched-date-input').value;
+
+                // 1. Move to Watched (if date visible/needed)
+                if (!document.getElementById('watched-date-input').classList.contains('hidden')) {
+                    await authFetch(`/api/log/${activeTmdbId}/status`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'watched', date: dateVal })
+                    });
+                }
+
+                // 2. Set Rating (if selected)
+                if (currentRating > 0) {
+                    await authFetch(`/api/log/${activeTmdbId}/rating?rating=${currentRating}`, {
+                        method: 'PUT'
+                    });
+                }
+
+                // 3. Share to Google (Mock) if rating is high?
+                if (currentRating >= 4) {
+                    // Optional: Prompt share
+                }
+
+                document.getElementById('date-modal').classList.add('hidden');
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+                init(); // Refresh
+            }
+        </script>
         <div id="drilldown-modal"
             class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
             <div
@@ -595,7 +794,7 @@
     <!-- MANUAL ADD MODAL -->
     <div id="add-modal"
         class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-sm p-6 relative animate-pop">
+        <div class="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-md p-6 relative animate-pop">
             <button onclick="closeAddModal()" class="absolute top-4 right-4 text-slate-500 hover:text-white">✕</button>
             <h2 class="text-xl font-bold text-white mb-4">Add to Watchlist</h2>
             <div class="space-y-4">
@@ -651,39 +850,80 @@
     </div>
 
     <!-- PROFILE MODAL (RESTORED) -->
-    <div id="profile-modal"
+    <div id="edit-profile-modal"
         class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-sm p-6 relative">
-            <button onclick="document.getElementById('profile-modal').classList.add('hidden')"
+        <div class="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-md p-6 relative">
+            <button onclick="document.getElementById('edit-profile-modal').classList.add('hidden')"
                 class="absolute top-4 right-4 text-slate-500 hover:text-white">✕</button>
             <h2 class="text-xl font-bold text-white mb-4">Edit Profile</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Name</label>
+                    <input type="text" id="edit-name"
+                        class="w-full bg-slate-800 border-none rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500"
+                        placeholder="Display Name">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Bio</label>
+                    <textarea id="edit-bio" rows="3"
+                        class="w-full bg-slate-800 border-none rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Profile Picture
+                        URL</label>
+                    <input type="file" id="edit-pic-file" accept="image/*"
+                        class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white text-xs mb-2 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700">
+                    <input type="text" id="edit-pic"
+                        class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500 mb-4 text-xs"
+                        placeholder="Or paste image link...">
+                </div>
 
-            <label class="text-xs text-slate-400 block mb-1">Profile Picture</label>
-            <input type="file" id="edit-pic-file" accept="image/*"
-                class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white text-xs mb-2 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700">
-            <input type="text" id="edit-pic"
-                class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500 mb-4 text-xs"
-                placeholder="Or paste image link...">
-
-            <label class="text-xs text-slate-400 block mb-1">Bio</label>
-            <textarea id="edit-bio" rows="3"
-                class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500 mb-4"
-                placeholder="Tell us your movie taste..."></textarea>
-
-            <button onclick="saveProfile()"
-                class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-lg shadow-lg shadow-indigo-500/20 transition-all">
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label
+                            class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">City</label>
+                        <input type="text" id="edit-city"
+                            class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500 text-sm"
+                            placeholder="e.g. Lagos">
+                    </div>
+                    <div>
+                        <label
+                            class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Country</label>
+                        <input type="text" id="edit-country"
+                            class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500 text-sm"
+                            placeholder="e.g. Nigeria">
+                    </div>
+                </div>
+            </div>
+            <button onclick="submitProfileEdit()"
+                class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-lg shadow-lg shadow-indigo-500/20 transition-all mt-4">
                 Save Profile
             </button>
+
+            <div class="mt-8 pt-6 border-t border-white/10">
+                <h4 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Data Management</h4>
+                <div class="flex gap-3">
+                    <button onclick="exportData('watchlist')"
+                        class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold text-white transition-colors flex items-center justify-center gap-2 border border-slate-700">
+                        <span>📥</span> Export Watchlist
+                    </button>
+                    <button onclick="exportData('history')"
+                        class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold text-white transition-colors flex items-center justify-center gap-2 border border-slate-700">
+                        <span>📜</span> Export History
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
     </div>
 
     <!-- DATE PICKER MODAL for "Mark Watched" -->
-    <div id="date-modal"
+    <div id="mark-watched-modal"
         class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[70] hidden flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-sm p-6 relative animate-pop">
-            <button onclick="closeDateModal()" class="absolute top-4 right-4 text-slate-500 hover:text-white">✕</button>
+            <button onclick="closeMarkWatchedModal()"
+                class="absolute top-4 right-4 text-slate-500 hover:text-white">✕</button>
             <h2 class="text-xl font-bold text-white mb-4">When did you watch this?</h2>
             <div class="space-y-4">
                 <input type="date" id="status-date"
@@ -695,6 +935,30 @@
                         class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-lg">Today</button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- STORY MODE OVERLAY -->
+    <div id="story-overlay" class="fixed inset-0 z-[100] bg-black hidden flex-col">
+        <!-- Progress Header -->
+        <div id="story-progress-container" class="absolute top-4 left-4 right-4 flex gap-2 z-20">
+            <!-- Bars injected here -->
+        </div>
+
+        <!-- Controls -->
+        <button onclick="StoryManager.close()"
+            class="absolute top-8 right-6 z-30 text-white/50 hover:text-white">✕</button>
+        <div class="absolute inset-0 flex z-10">
+            <div class="w-1/3 h-full" onclick="StoryManager.prev()"></div>
+            <div class="w-1/3 h-full" onmousedown="StoryManager.pause()" onmouseup="StoryManager.resume()"
+                ontouchstart="StoryManager.pause()" ontouchend="StoryManager.resume()"></div>
+            <!-- Center hold to pause -->
+            <div class="w-1/3 h-full" onclick="StoryManager.next()"></div>
+        </div>
+
+        <!-- Slide Content -->
+        <div id="story-content" class="flex-1 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+            <!-- Slide Injected Here -->
         </div>
     </div>
 
@@ -737,14 +1001,14 @@
 
         let currentMarkId = null;
 
-        function openDateModal(id) {
+        function openMarkWatchedModal(id) {
             currentMarkId = id;
             document.getElementById('status-date').valueAsDate = new Date();
-            document.getElementById('date-modal').classList.remove('hidden');
+            document.getElementById('mark-watched-modal').classList.remove('hidden');
         }
 
-        function closeDateModal() {
-            document.getElementById('date-modal').classList.add('hidden');
+        function closeMarkWatchedModal() {
+            document.getElementById('mark-watched-modal').classList.add('hidden');
             currentMarkId = null;
         }
 
@@ -753,13 +1017,13 @@
             const dateVal = document.getElementById('status-date').value;
             const date = dateVal ? new Date(dateVal).toISOString() : null;
             await markWatchedApi(currentMarkId, date);
-            closeDateModal();
+            closeMarkWatchedModal();
         }
 
         async function skipDateMarkWatched() {
             if (!currentMarkId) return;
             await markWatchedApi(currentMarkId, null); // Backend defaults to Now
-            closeDateModal();
+            closeMarkWatchedModal();
         }
 
         async function markWatchedApi(id, dateStr) {
@@ -797,7 +1061,6 @@
             }
             // Use existing search endpoint but logic is different. Wait, current endpoint /api/social/search is for USERS.
             // I need a TMDB search endpoint. Let's assume one exists or mock it with a client call? 
-            // Wait, I can only call backend. I will use a simple client-side fetch to TMDB? 
             // NO, CORS issues. AND API Key exposure.
             // I MUST ADD A BACKEND ENDPOINT FOR SEARCH.
             // For now, I'll update the JS and then go fix Backend.
@@ -867,7 +1130,8 @@
                 title: document.getElementById('selected-title').textContent, // Fallback
                 media_type: type,
                 status: status,
-                tmdb_id: parseInt(tmdbId) // New field I need to handle in Backend
+                tmdb_id: parseInt(tmdbId), // New field I need to handle in Backend
+                rating: parseInt(document.getElementById('manual-rating')?.value || '0')
             };
 
             if (status === 'watched' && dateVal) {
@@ -927,25 +1191,43 @@
             window.location.href = '/login';
         }
 
+        function renderStarDisplay(rating) {
+            if (!rating) return '';
+            const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
+            return `<span class="text-yellow-400 text-xs tracking-widest">${stars}</span>`;
+        }
+
         function renderCard(item, isWatchlist = false) {
             const div = document.createElement('div');
-            // Matching existing styles
             div.className = 'glass rounded-xl p-3 card-hover flex flex-col h-full relative group';
 
             const posterUrl = item.poster_path
                 ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
                 : 'https://via.placeholder.com/500x750?text=No+Image';
 
+            const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(item.title + ' ' + item.media_type)}`;
+
             const dateStr = item.watched_at ? new Date(item.watched_at).toLocaleDateString() : 'Recently';
+
+            // Rating UI
+            const ratingHtml = !isWatchlist && item.rating ?
+                `<div class="absolute bottom-16 right-3 bg-black/60 px-2 py-1 rounded backdrop-blur-md">${renderStarDisplay(item.rating)}</div>` : '';
+
             const btnAction = isWatchlist
-                ? `<button onclick="openDateModal(${item.tmdb_id})" class="mt-3 w-full py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition-colors">Mark Watched</button>`
-                : `<div class="mt-3 text-xs text-slate-500 text-center">Watched on ${dateStr}</div>`;
+                ? `<button onclick="openMarkWatchedModal(${item.tmdb_id})" class="mt-3 w-full py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition-colors">Mark Watched</button>`
+                : `<div class="mt-3 flex justify-between items-center text-xs text-slate-500">
+                     <span>Watched on ${dateStr}</span>
+                     ${item.rating ? '' : `<button onclick="openRateModal(${item.tmdb_id}, '${item.title.replace(/'/g, "\\'")}')" class="text-indigo-400 hover:text-indigo-300">Rate</button>`}
+                   </div>`;
 
             div.innerHTML = `
-                <div class="relative aspect-[2/3] mb-3 overflow-hidden rounded-lg">
-                    <img src="${posterUrl}" class="object-cover w-full h-full transform group-hover:scale-105 transition-transform duration-500" alt="${item.title}">
-                    <div class="absolute top-2 right-2 bg-black/60 px-2 py-1 rounded text-xs backdrop-blur-sm self-start">${item.year || 'N/A'}</div>
-                    <button onclick="deleteEntry(${item.tmdb_id})" class="absolute top-2 left-2 bg-red-500/80 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm" title="Delete">
+                <div class="relative aspect-[2/3] mb-3 overflow-hidden rounded-lg group/poster cursor-pointer">
+                    <a href="${googleUrl}" target="_blank" rel="noopener noreferrer">
+                        <img src="${posterUrl}" class="object-cover w-full h-full transform group-hover/poster:scale-105 transition-transform duration-500" alt="${item.title}">
+                    </a>
+                    <div class="absolute top-2 right-2 bg-black/60 px-2 py-1 rounded text-xs backdrop-blur-sm self-start pointer-events-none">${item.year || 'N/A'}</div>
+                    ${ratingHtml}
+                    <button onclick="event.preventDefault(); deleteEntry(${item.tmdb_id})" class="absolute top-2 left-2 bg-red-500/80 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm z-20" title="Delete">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                     </button>
                 </div>
@@ -958,7 +1240,6 @@
                 </div>
                 ${btnAction}
             `;
-            // Add Animation Class
             div.classList.add('animate-swing');
             return div.outerHTML;
         }
@@ -984,7 +1265,7 @@
             `).join('');
 
             return `
-                <div class="glass rounded-xl p-4 flex gap-4 items-start animate-swing group/item">
+                <div id="feed-item-${item.id}" class="glass rounded-xl p-4 flex gap-4 items-start animate-swing group/item">
                     <div class="relative flex-shrink-0">
                         <img src="${item.poster_path ? 'https://image.tmdb.org/t/p/w200' + item.poster_path : 'https://via.placeholder.com/100'}" 
                              class="w-16 h-24 object-cover rounded shadow-lg">
@@ -1051,16 +1332,23 @@
         }
 
         // --- Profile ---
-        function openProfileModal() {
-            const info = JSON.parse(localStorage.getItem('user_info') || '{}');
-            document.getElementById('edit-bio').value = info.bio || '';
-            document.getElementById('edit-pic').value = info.picture || '';
-            document.getElementById('profile-modal').classList.remove('hidden');
+        let currentUser = {}; // Store current user info
+
+        function openEditProfile() {
+            document.getElementById('edit-profile-modal').classList.remove('hidden');
+            document.getElementById('edit-bio').value = currentUser.bio || '';
+            document.getElementById('edit-pic').value = currentUser.picture || '';
+            document.getElementById('edit-name').value = currentUser.name || '';
+            document.getElementById('edit-city').value = currentUser.city || '';
+            document.getElementById('edit-country').value = currentUser.country || '';
         }
 
-        async function saveProfile() {
+        async function submitProfileEdit() {
             const bio = document.getElementById('edit-bio').value;
             let pic = document.getElementById('edit-pic').value;
+            const name = document.getElementById('edit-name').value;
+            const city = document.getElementById('edit-city').value;
+            const country = document.getElementById('edit-country').value;
             const fileInput = document.getElementById('edit-pic-file');
 
             // Upload File if selected
@@ -1071,7 +1359,7 @@
                 // Use raw fetch for upload to let browser handle boundary
                 const token = localStorage.getItem('access_token');
                 try {
-                    const uploadRes = await fetch('/api/users/upload-avatar', {
+                    const uploadRes = await fetch(`${API_URL}/api/users/upload-avatar`, {
                         method: 'POST',
                         headers: { 'Authorization': `Bearer ${token}` },
                         body: formData
@@ -1094,7 +1382,7 @@
             const res = await authFetch('/api/users/me', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ bio: bio, picture: pic })
+                body: JSON.stringify({ bio: bio, picture: pic, name: name, city: city, country: country })
             });
 
             if (res.ok) {
@@ -1103,19 +1391,61 @@
                 const info = JSON.parse(localStorage.getItem('user_info') || '{}');
                 info.bio = data.bio;
                 info.picture = data.picture;
+                info.name = data.name;
+                info.city = data.city;
+                info.country = data.country;
                 localStorage.setItem('user_info', JSON.stringify(info));
 
                 // Update UI
                 updateProfileUI(info);
-                document.getElementById('profile-modal').classList.add('hidden');
+                document.getElementById('edit-profile-modal').classList.add('hidden');
+            } else {
+                alert("Failed to update profile");
             }
         }
 
         function updateProfileUI(user) {
             if (!user) return;
+            currentUser = user; // Update global current user
             document.getElementById('my-profile-pic').src = user.picture;
             document.getElementById('my-profile-name').innerText = user.name;
             document.getElementById('my-profile-bio').innerText = user.bio || "No bio yet.";
+        }
+
+        async function exportData(type) {
+            const token = localStorage.getItem('access_token');
+            if (!token) return;
+
+            // Trigger download via Direct Link
+            const link = document.createElement('a');
+            link.href = `${API_URL}/api/export?type=${type}`;
+            link.setAttribute('download', ''); // Browser handles filename from header
+            // Need headers? Standard link click won't send Authorization header usually.
+            // Wait, if API requires Auth, simple link won't work unless we use cookies or pass token in URL (unsafe).
+            // Or we fetch blob and download.
+
+            try {
+                const res = await fetch(`${API_URL}/api/export?type=${type}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = type === 'watchlist' ? 'watchlist_export.csv' : 'watched_history_export.csv';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    a.remove();
+                } else {
+                    alert("Export failed");
+                }
+            } catch (e) {
+                console.error("Export Error", e);
+                alert("Export error");
+            }
         }
 
         // --- Notifications ---
@@ -1128,7 +1458,7 @@
                     btn.classList.remove('hidden');
                     const list = document.getElementById('notif-list');
                     list.innerHTML = notifs.map(n => `
-                        <div class="px-2 py-2 hover:bg-slate-800 rounded text-xs">
+                        <div onclick="handleNotificationClick(${n.ref_id}, '${n.type}', ${n.id})" class="px-2 py-2 hover:bg-slate-800 rounded text-xs cursor-pointer transition-colors border-l-2 border-transparent hover:border-indigo-500">
                             <p class="text-white">${n.message}</p>
                             <span class="text-slate-500 text-[10px]">${new Date(n.created_at).toLocaleTimeString()}</span>
                         </div>
@@ -1143,6 +1473,53 @@
             await authFetch('/api/notifications/clear', { method: 'POST' });
             document.getElementById('notif-badge').classList.add('hidden');
             document.getElementById('notif-list').innerHTML = '<div class="text-center text-slate-600 text-xs py-4">All clear</div>';
+        }
+
+        async function handleNotificationClick(refId, type, notifId) {
+            // 1. Mark as read (optional specific endpoint, or just clear all? User said clear all clears list. Specific click should probably keep it or mark just one? API only has clear all. Leaving it for now, or just ignore.)
+
+            // 2. Switch to Social
+            if (type === 'like' || type === 'comment') {
+                switchTab('social');
+                // Check if feed item exists
+                const existingItem = document.getElementById(`feed-item-${refId}`);
+                if (existingItem) {
+                    existingItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    existingItem.classList.add('ring-2', 'ring-indigo-500');
+                    setTimeout(() => existingItem.classList.remove('ring-2', 'ring-indigo-500'), 2000);
+                    // If comment, open roast box
+                    if (type === 'comment' || type === 'like') {
+                        toggleRoastBox(refId);
+                        document.getElementById(`roast-input-${refId}`).focus();
+                    }
+                } else {
+                    // Fetch Item from API
+                    try {
+                        const res = await authFetch(`/api/social/feed/${refId}`);
+                        if (res.ok) {
+                            const item = await res.json();
+                            // Prepend to feed
+                            const feedContainer = document.getElementById('social-feed-list');
+                            const temp = document.createElement('div');
+                            temp.innerHTML = renderFeedItem(item);
+                            const newNode = temp.firstElementChild;
+
+                            feedContainer.insertBefore(newNode, feedContainer.firstChild);
+
+                            // Now scroll
+                            newNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            newNode.classList.add('ring-2', 'ring-indigo-500');
+                            setTimeout(() => newNode.classList.remove('ring-2', 'ring-indigo-500'), 2000);
+                            if (type === 'comment' || type === 'like') {
+                                toggleRoastBox(refId);
+                                document.getElementById(`roast-input-${refId}`).focus();
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Failed to fetch notification item", e);
+                    }
+                }
+            }
         }
 
         // Polling
@@ -1160,124 +1537,253 @@
         }
 
         async function init() {
-            const [history, stats] = await Promise.all([fetchHistory(), fetchStats()]);
+            // Check Auth
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
 
-            // 1. Update Stats
-            document.getElementById('stat-watchlist').innerText = stats.counts.watchlist;
-            document.getElementById('stat-watched').innerText = stats.counts.watched;
+            await loadProfile();
+            try {
+                const [history, stats] = await Promise.all([fetchHistory(), fetchStats()]);
+                console.log("DEBUG STATS:", stats);
+                // alert("Debug: " + JSON.stringify(stats?.counts || "No Counts")); 
 
-            // Format hours nicer
-            // Format hours nicer
-            const totalHours = Math.round(stats.total_runtime_minutes / 60);
-            const movieHours = Math.round(stats.split_runtime.movies / 60);
-            const seriesHours = Math.round(stats.split_runtime.series / 60);
+                // Safety Check
+                if (!stats || !stats.counts) {
+                    console.warn("Stats data missing or incomplete.", stats);
+                    alert("Stats Error: Data missing from backend.");
+                    // Set defaults to prevent crash
+                    if (stats) {
+                        stats.counts = stats.counts || { watchlist: 0, watched: 0, movies: 0, series: 0 };
+                        stats.split_runtime = stats.split_runtime || { movies: 0, series: 0 };
+                        stats.avg_hours_to_watch = stats.avg_hours_to_watch || 0;
+                        stats.top_genres = stats.top_genres || [];
+                        stats.top_studios = stats.top_studios || [];
+                        stats.top_cast = stats.top_cast || [];
+                        stats.monthly_activity = stats.monthly_activity || [];
+                        stats.decade_distribution = stats.decade_distribution || [];
+                    } else {
+                        return; // Retrying...
+                    }
+                }
 
-            document.getElementById('stat-hours').innerText = totalHours + 'h';
-            document.getElementById('stat-hours-breakdown').innerHTML = `
+                // 1. Update Stats
+                document.getElementById('stat-watchlist').innerText = stats.counts.watchlist;
+                document.getElementById('stat-watched').innerText = stats.counts.watched;
+
+                // Format hours nicer
+                const totalHours = Math.round((stats.total_runtime_minutes || 0) / 60);
+                const movieHours = Math.round((stats.split_runtime.movies || 0) / 60);
+                const seriesHours = Math.round((stats.split_runtime.series || 0) / 60);
+
+                document.getElementById('stat-hours').innerText = totalHours + 'h';
+                document.getElementById('stat-hours-breakdown').innerHTML = `
                 <span class="text-indigo-300">${movieHours}h Movies</span> • 
                 <span class="text-purple-300">${seriesHours}h Series</span>
             `;
 
-            document.getElementById('stat-velocity').innerText = stats.avg_hours_to_watch + 'h';
+                document.getElementById('stat-velocity').innerText = stats.avg_hours_to_watch + 'h';
 
-            // 2. Grids
-            const watchlist = history.filter(i => i.status === 'watchlist');
-            const watched = history.filter(i => i.status === 'watched');
-
-            document.getElementById('watchlist-grid').innerHTML = watchlist.map(i => renderCard(i, true)).join('');
-            document.getElementById('history-grid').innerHTML = watched.map(i => renderCard(i, false)).join('');
-
-            // 3. Charts
-
-            // Helper to safe destroy
-            const destroyChart = (id) => {
-                const chartStatus = Chart.getChart(id);
-                if (chartStatus != undefined) {
-                    chartStatus.destroy();
+                // --- DEEP DIVE CARDS ---
+                if (stats.counts.completion_rate !== undefined) {
+                    document.getElementById('stat-completion').innerText = stats.counts.completion_rate + '%';
+                    document.getElementById('stat-rating').innerText = stats.counts.avg_rating;
+                    document.getElementById('stat-perfect').innerText = stats.counts.perfect_scores;
                 }
-            };
 
-            // A. Genres (Doughnut)
-            if (stats.top_genres.length > 0) {
-                destroyChart('genreChart');
-                new Chart(document.getElementById('genreChart'), {
-                    type: 'doughnut',
+                // 2. Grids
+                // Fix: Match backend stats logic (anything not 'watched' is watchlist)
+                const watchlist = history.filter(i => i.status !== 'watched');
+                const watched = history.filter(i => i.status === 'watched');
+
+                document.getElementById('watchlist-grid').innerHTML = watchlist.map(i => renderCard(i, true)).join('');
+                document.getElementById('history-grid').innerHTML = watched.map(i => renderCard(i, false)).join('');
+
+                // 3. Charts
+
+                // Helper to safe destroy
+                const destroyChart = (id) => {
+                    const chartStatus = Chart.getChart(id);
+                    if (chartStatus != undefined) {
+                        chartStatus.destroy();
+                    }
+                };
+
+                // A. Genres (Doughnut)
+                if (stats.top_genres.length > 0) {
+                    destroyChart('genreChart');
+                    new Chart(document.getElementById('genreChart'), {
+                        type: 'doughnut',
+                        data: {
+                            labels: stats.top_genres.map(g => g[0]),
+                            datasets: [{
+                                data: stats.top_genres.map(g => g[1]),
+                                backgroundColor: ['#818cf8', '#c084fc', '#34d399', '#f472b6', '#60a5fa'],
+                                borderWidth: 0
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#94a3b8', boxWidth: 12 } } } }
+                    });
+                }
+
+                // B. Format Split (Pie)
+                destroyChart('formatChart');
+                new Chart(document.getElementById('formatChart'), {
+                    type: 'pie',
                     data: {
-                        labels: stats.top_genres.map(g => g[0]),
+                        labels: ['Movies', 'Series'],
                         datasets: [{
-                            data: stats.top_genres.map(g => g[1]),
-                            backgroundColor: ['#818cf8', '#c084fc', '#34d399', '#f472b6', '#60a5fa'],
+                            data: [stats.counts.movies, stats.counts.series],
+                            backgroundColor: ['#6366f1', '#a855f7'],
                             borderWidth: 0
                         }]
                     },
                     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#94a3b8', boxWidth: 12 } } } }
                 });
+
+                // C. Activity (Calendar Heatmap)
+                destroyChart('activityChart'); // We might not use Chart.js for this if we do a custom grid, but let's see.
+                // Actually, Chart.js isn't great for GitHub style heatmaps.
+                // Let's manually render a grid into the container?
+                // Or use a Chart.js Matrix plugin.
+                // Simpler: Just generate HTML grid.
+                const activityContainer = document.getElementById('activityChart').parentElement;
+                // Clear canvas and reuse container
+                activityContainer.innerHTML = '';
+
+                const heatmapMap = stats.daily_activity || {};
+                const today = new Date();
+                const currentYear = today.getFullYear();
+
+                // Start: Jan 1 of Current Year
+                const startDate = new Date(currentYear, 0, 1);
+                // End: Dec 31 of Current Year
+                const endDate = new Date(currentYear, 11, 31);
+
+                // Generate dates
+                let currentDate = new Date(startDate);
+                let html = '<div class="flex gap-1 overflow-x-auto pb-2 custom-scrollbar">';
+
+                // Group by Week
+                let weeks = [];
+                let currentWeek = [];
+
+                // Pad start to Sunday
+                const dayOfWeek = startDate.getDay(); // 0 = Sun
+                for (let i = 0; i < dayOfWeek; i++) {
+                    currentWeek.push(null); // Empty placeholder
+                }
+
+                while (currentDate <= endDate) {
+                    // Safe Date Formatting (Local)
+                    const year = currentDate.getFullYear();
+                    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+                    const day = String(currentDate.getDate()).padStart(2, '0');
+                    const dateStr = `${year}-${month}-${day}`;
+
+                    const count = heatmapMap[dateStr] || 0;
+
+                    currentWeek.push({ date: dateStr, count: count });
+
+                    if (currentWeek.length === 7) {
+                        weeks.push(currentWeek);
+                        currentWeek = [];
+                    }
+                    currentDate.setDate(currentDate.getDate() + 1);
+                }
+                if (currentWeek.length > 0) weeks.push(currentWeek); // Last partial week
+
+                // Render
+                html += weeks.map(week => {
+                    return `<div class="flex flex-col gap-1">` +
+                        week.map(day => {
+                            if (!day) return `<div class="w-3 h-3 rounded-sm bg-transparent"></div>`;
+
+                            let color = 'bg-white/5';
+                            if (day.count > 0) color = 'bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]';
+                            if (day.count > 1) color = 'bg-indigo-400 shadow-[0_0_10px_rgba(129,140,248,0.6)]';
+                            if (day.count > 3) color = 'bg-indigo-300 shadow-[0_0_10px_rgba(165,180,252,0.8)]';
+                            if (day.count > 5) color = 'bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)]';
+
+                            return `<div class="w-3 h-3 rounded-sm ${color} hover:scale-125 transition-all cursor-pointer" title="${day.date}: ${day.count} items"></div>`;
+                        }).join('') +
+                        `</div>`;
+                }).join('');
+
+                html += '</div>';
+
+                // Legend
+                html += `
+                <div class="flex items-center gap-2 mt-2 text-[10px] text-slate-500 justify-end">
+                    <span>${currentYear}</span>
+                    <span class="flex-1"></span>
+                    <span>Less</span>
+                    <div class="w-2 h-2 rounded-sm bg-white/5"></div>
+                    <div class="w-2 h-2 rounded-sm bg-indigo-500"></div>
+                    <div class="w-2 h-2 rounded-sm bg-indigo-300"></div>
+                    <div class="w-2 h-2 rounded-sm bg-white"></div>
+                    <span>More</span>
+                </div>
+                `;
+
+                activityContainer.innerHTML = html;
+
+                // D. Eras (Bar)
+                destroyChart('eraChart');
+                new Chart(document.getElementById('eraChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: stats.decade_distribution.map(d => d[0]),
+                        datasets: [{
+                            label: 'Items',
+                            data: stats.decade_distribution.map(d => d[1]),
+                            backgroundColor: '#fcd34d',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', precision: 0 } },
+                            x: { grid: { display: false }, ticks: { color: '#64748b' } }
+                        }
+                    }
+                });
+
+                // E. Runtime Distribution (Bar)
+                if (stats.runtime_distribution) {
+                    destroyChart('runtimeChart');
+                    new Chart(document.getElementById('runtimeChart'), {
+                        type: 'bar',
+                        data: {
+                            labels: Object.keys(stats.runtime_distribution),
+                            datasets: [{
+                                label: 'Items',
+                                data: Object.values(stats.runtime_distribution),
+                                backgroundColor: ['#34d399', '#facc15', '#f87171'],
+                                borderRadius: 6,
+                                barPercentage: 0.6
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', precision: 0 } },
+                                x: { grid: { display: false }, ticks: { color: '#64748b' } }
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error("Init Error:", error);
+                alert("Critical Dashboard Error. Check Console.");
             }
-
-            // B. Format Split (Pie)
-            destroyChart('formatChart');
-            new Chart(document.getElementById('formatChart'), {
-                type: 'pie',
-                data: {
-                    labels: ['Movies', 'Series'],
-                    datasets: [{
-                        data: [stats.counts.movies, stats.counts.series],
-                        backgroundColor: ['#6366f1', '#a855f7'],
-                        borderWidth: 0
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#94a3b8', boxWidth: 12 } } } }
-            });
-
-            // C. Activity (Line)
-            destroyChart('activityChart');
-            new Chart(document.getElementById('activityChart'), {
-                type: 'line',
-                data: {
-                    labels: stats.monthly_activity.map(a => a[0]),
-                    datasets: [{
-                        label: 'Watched',
-                        data: stats.monthly_activity.map(a => a[1]),
-                        borderColor: '#38bdf8',
-                        backgroundColor: 'rgba(56, 189, 248, 0.1)',
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', precision: 0 } },
-                        x: { grid: { display: false }, ticks: { color: '#64748b' } }
-                    }
-                }
-            });
-
-            // D. Eras (Bar)
-            destroyChart('eraChart');
-            new Chart(document.getElementById('eraChart'), {
-                type: 'bar',
-                data: {
-                    labels: stats.decade_distribution.map(d => d[0]),
-                    datasets: [{
-                        label: 'Items',
-                        data: stats.decade_distribution.map(d => d[1]),
-                        backgroundColor: '#fcd34d',
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', precision: 0 } },
-                        x: { grid: { display: false }, ticks: { color: '#64748b' } }
-                    }
-                }
-            });
         }
 
         // --- Social Logic ---
@@ -1323,7 +1829,6 @@
             handleUserSearch(val);
             // Refresh feed
             loadFeed();
-            loadFollowing(); // Refresh friends list too
         }
 
         async function loadFollowing() {
@@ -1369,6 +1874,63 @@
             switchView(tab);
         }
 
+        // --- Load Leaderboard ---
+        let currentScope = 'global'; // Track state
+
+        async function loadLeaderboard(scope = currentScope) {
+            currentScope = scope; // Update state
+
+            // Get Genre
+            const genreSelect = document.getElementById('leaderboard-genre');
+            const genre = genreSelect ? genreSelect.value : 'All';
+
+            // Update Tab UI
+            document.querySelectorAll('#view-leaderboard button').forEach(b => {
+                b.className = "px-4 py-2 rounded-full text-sm font-bold bg-white/10 hover:bg-white/20 text-white transition-colors border border-transparent";
+            });
+            const activeBtn = document.getElementById(`tab-${scope}`);
+            if (activeBtn) activeBtn.className = "px-4 py-2 rounded-full text-sm font-bold bg-indigo-600 text-white transition-colors border border-indigo-400";
+
+            const res = await authFetch(`/api/leaderboard?scope=${scope}&genre=${genre}`);
+            if (!res.ok) return;
+            const data = await res.json();
+
+            const tbody = document.getElementById('leaderboard-list');
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center p-4 text-slate-500">No rankings found for this category.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.map((u, i) => `
+                <tr class="border-b border-slate-700 hover:bg-white/5 transition-colors">
+                    <td class="p-4">
+                        <div class="flex items-center gap-2">
+                            ${i === 0 ? '<span class="text-2xl">🥇</span>' : ''}
+                            ${i === 1 ? '<span class="text-2xl">🥈</span>' : ''}
+                            ${i === 2 ? '<span class="text-2xl">🥉</span>' : ''}
+                            ${i > 2 ? `<span class="font-mono text-slate-500 font-bold ml-2">#${i + 1}</span>` : ''}
+                        </div>
+                    </td>
+                    <td class="p-4">
+                        <div class="flex items-center gap-3">
+                            <img src="${u.picture}" class="w-10 h-10 rounded-full border border-slate-600">
+                            <span class="font-bold text-white">${u.name}</span>
+                        </div>
+                    </td>
+                    <td class="p-4">
+                        <span class="font-mono text-indigo-400">${u.hours}h</span>
+                    </td>
+                    <td class="p-4">
+                        <span class="text-xs bg-white/10 px-2 py-1 rounded-full text-slate-300">${u.vibe}</span>
+                    </td>
+                    <td class="p-4">
+                         <span class="text-xs text-slate-500">${u.city || ''} ${u.country ? '(' + u.country + ')' : ''}</span>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Global switcher for Bottom Nav & Tabs
         // Global switcher for Bottom Nav & Tabs
         function switchView(viewName) {
             // Hide all views
@@ -1381,7 +1943,7 @@
             const target = document.getElementById(`view-${viewName}`);
             if (target) {
                 target.classList.remove('hidden');
-                // Trigger animations/data loads for specific views
+
                 if (viewName === 'analytics') {
                     loadRecs();
                     loadSprint();
@@ -1390,14 +1952,23 @@
                     loadFeed();
                     loadFollowing();
                 }
+                if (viewName === 'leaderboard') {
+                    loadLeaderboard();
+                }
                 if (viewName === 'report') {
-                    loadReport();
-                    confetti({
-                        particleCount: 150,
-                        spread: 70,
-                        origin: { y: 0.6 },
-                        colors: ['#6366f1', '#ec4899', '#a855f7', '#fbbf24']
-                    });
+                    // Seasonality Logic: Dec 1 - Dec 30
+                    const d = new Date();
+                    const month = d.getMonth(); // 0-11, 11 is Dec
+                    const day = d.getDate();
+                    const isSeason = month === 11 && day >= 1 && day <= 30;
+                    // const isSeason = true; // FORCE DEBUG (Uncomment to test out of season)
+
+                    if (isSeason) {
+                        StoryManager.start();
+                    } else {
+                        switchView('leaderboard');
+                        alert("Wrapped is only available Dec 1st - 30th! Redirecting to Rankings.");
+                    }
                 }
             }
 
@@ -1562,17 +2133,31 @@
             document.getElementById('recommendations-list').innerHTML = recs.map(renderRecCard).join('');
         }
 
+        async function loadProfile() {
+            try {
+                const res = await authFetch('/api/users/me');
+                if (res && res.ok) {
+                    const data = await res.json();
+                    localStorage.setItem('user_info', JSON.stringify(data));
+                    updateProfileUI(data);
+                }
+            } catch (e) {
+                console.error("Profile Load Error", e);
+            }
+        }
+
         // Auto-Refresh Logic
         function startAutoRefresh() {
             setInterval(async () => {
                 // Background update without full UI flicker?
                 if (document.visibilityState === 'visible') {
-                    const stats = await authFetch('/api/stats');
-                    if (stats) {
+                    const res = await authFetch('/api/stats');
+                    if (res && res.ok) {
+                        const stats = await res.json();
                         const currentCount = parseInt(document.getElementById('stat-watchlist').innerText || '0') +
                             parseInt(document.getElementById('stat-watched').innerText || '0');
 
-                        const newCount = stats.counts.watchlist + stats.counts.watched;
+                        const newCount = (stats.counts?.watchlist || 0) + (stats.counts?.watched || 0);
 
                         // Only full refresh if data changed
                         if (newCount !== currentCount) {
@@ -1614,45 +2199,382 @@
                 grid.innerHTML = '<div class="col-span-full text-center py-20 text-red-400">Error fetching details.</div>';
             }
         }
-        function closeAddModal() { document.getElementById('add-modal').classList.add('hidden'); }
 
-        async function submitManualAdd() {
-            const title = document.getElementById('add-title').value;
-            const type = document.getElementById('add-type').value;
-            const status = document.getElementById('add-status').value;
+        // --- STORY MANAGER ---
+        const StoryManager = {
+            data: null,
+            stories: [],
+            currentIndex: 0,
+            timer: null,
+            audio: null,
+            duration: 10000,
+            isPaused: false,
 
-            if (!title) return alert("Title required");
+            init() {
+                // Audio Tracks Map
+                this.tracks = [
+                    'https://pixabay.com/music/download/audio/112674/', // Cinematic
+                    'https://pixabay.com/music/download/audio/112151/', // Upbeat
+                    'https://pixabay.com/music/download/audio/13697/'   // Emotional
+                ];
+                // Try to load first
+                this.audio = new Audio(this.tracks[0]);
+                this.audio.loop = true;
+                this.audio.volume = 0.3;
+            },
 
-            const btn = document.querySelector('#add-modal button');
-            btn.innerText = "Searching & Adding...";
-            btn.disabled = true;
+            generateStories() {
+                const s = this.data;
+                const slides = [];
 
-            try {
-                const res = await authFetch('/api/log', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        title: title,
-                        media_type: type,
-                        status: status
-                    })
+                // 1. Intro
+                slides.push({ type: 'intro', data: s });
+
+                // 2. Vibe
+                slides.push({ type: 'vibe', data: s });
+
+                // 3. Stats
+                slides.push({ type: 'stats', data: s });
+
+                // 4. Genres
+                if (s.top_genres.length > 0) {
+                    slides.push({ type: 'genres', data: s });
+                }
+
+                // NEW: 4b. Top Cast
+                if (s.top_cast && s.top_cast.length > 0) {
+                    slides.push({ type: 'cast', data: s });
+                }
+
+                // 5. Global (Countries)
+                if (s.top_countries && s.top_countries.length > 0) {
+                    slides.push({ type: 'countries', data: s });
+                }
+
+                // NEW: 5b. Heat (Binge Day)
+                if (s.top_day) {
+                    slides.push({ type: 'heat', data: s });
+                }
+
+                // NEW: 5c. Completionist
+                if (s.counts.completion_rate > 50) {
+                    slides.push({ type: 'completion', data: s });
+                }
+
+                // 6. Trivia
+                if (s.trivia.length > 0) {
+                    slides.push({ type: 'trivia', data: s });
+                }
+
+
+
+                // 7. Outro
+                slides.push({ type: 'outro', data: s });
+
+                this.slides = slides; // Store locally for navigation
+                return slides;
+            },
+
+            drillDownCountry(countryCode) {
+                this.pause();
+                // Find items from this country
+                // We don't have full list in stats, need to use drilldown endpoint
+                openDrillDown('country', countryCode);
+            },
+
+
+            async start() {
+                const stats = await fetchStats();
+                if (!stats) return;
+                this.data = stats;
+
+                // Prepare Slides
+                this.stories = this.generateStories();
+                const year = new Date().getFullYear();
+                if (this.stories.length === 0) return alert(`Not enough data for ${year} Wrapped!`);
+
+                this.currentIndex = 0;
+                document.getElementById('story-overlay').classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                this.renderProgress();
+                this.showSlide(0); // Start the show
+
+                // Play Audio
+                if (!this.tracks || this.tracks.length === 0) this.init();
+                const randomTrack = this.tracks[Math.floor(Math.random() * this.tracks.length)];
+                this.audio.src = randomTrack;
+                this.audio.play().catch(e => console.log("Audio play failed (user interaction needed):", e));
+            },
+
+            // Alias for safety if called elsewhere
+            renderStory() {
+                this.showSlide(this.currentIndex);
+            },
+
+            close() {
+                document.getElementById('story-overlay').classList.add('hidden');
+                document.body.style.overflow = 'auto';
+                clearTimeout(this.timer);
+                if (this.audio) {
+                    this.audio.pause();
+                    this.audio.currentTime = 0;
+                }
+                // Stay on current view (Report) to allow interaction
+            },
+
+            next() {
+                if (this.currentIndex < this.slides.length - 1) {
+                    this.showSlide(this.currentIndex + 1);
+                } else {
+                    this.close();
+                }
+            },
+
+            prev() {
+                if (this.currentIndex > 0) {
+                    this.showSlide(this.currentIndex - 1);
+                }
+            },
+
+            pause() {
+                this.isPaused = true;
+                document.getElementById('story-overlay').classList.add('paused');
+                // Pause animation
+                const fill = document.querySelectorAll('.story-progress-fill')[this.currentIndex];
+                if (fill) fill.style.animationPlayState = 'paused';
+                clearTimeout(this.timer);
+            },
+
+            resume() {
+                this.isPaused = false;
+                document.getElementById('story-overlay').classList.remove('paused');
+                const fill = document.querySelectorAll('.story-progress-fill')[this.currentIndex];
+                if (fill) fill.style.animationPlayState = 'running';
+                // Resume timer roughly? Easier to just restart slide or let user click next. 
+                // For simple MVP: just restart the 5s timer implies extended view. 
+                // Better: Calculate remaining time. Complexity high.
+                // Simple: Restart full duration for this slide on resume, or just auto-advance after a short delay?
+                // Visual sync issues if we just restart timer. 
+                // Let's just restart CSS animation and Timer for simplicity in MVP 1.0 or just rely on CSS 'animationend' event?
+                // Re-triggering showSlide(current) works but resets progress bar.
+                // Let's just auto-advance after 2s if released? No. 
+                // Proper way: CSS animation end triggers next.
+            },
+
+            renderProgress() {
+                const container = document.getElementById('story-progress-container');
+                container.innerHTML = this.slides.map((_, i) => `
+                    <div class="story-progress-bar">
+                        <div class="story-progress-fill" id="progress-${i}"></div>
+                    </div>
+                `).join('');
+            },
+
+            showSlide(index) {
+                clearTimeout(this.timer);
+                this.currentIndex = index;
+
+                // Update Bars
+                this.slides.forEach((_, i) => {
+                    const fill = document.getElementById(`progress-${i}`);
+                    fill.style.width = i < index ? '100%' : '0%';
+                    fill.style.animation = 'none';
                 });
 
-                if (res && res.ok) {
-                    alert("Added successfully!");
-                    closeAddModal();
-                    document.getElementById('add-title').value = '';
-                    init();
-                } else {
-                    alert("Failed to find content. Try exact name.");
+                // Animate Current Bar
+                const currentFill = document.getElementById(`progress-${index}`);
+                currentFill.style.width = '0%';
+                // Trigger reflow
+                void currentFill.offsetWidth;
+                currentFill.style.animation = `progress ${this.duration}ms linear forwards`;
+
+                // Render Content
+                const slide = this.slides[index];
+                const content = document.getElementById('story-content');
+                content.innerHTML = this.getSlideHTML(slide);
+
+                // Auto Advance
+                this.timer = setTimeout(() => {
+                    this.next();
+                }, this.duration);
+
+                // Trigger Confetti on Outro
+                if (slide.type === 'outro') {
+                    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
                 }
-            } catch (e) {
-                alert("Error: " + e);
-            } finally {
-                btn.innerText = "Add Content";
-                btn.disabled = false;
+            },
+
+            getSlideHTML(slide) {
+                const s = slide.data;
+                const commonClass = "flex flex-col items-center text-center animate-up max-w-2xl";
+
+                if (slide.type === 'intro') {
+                    const year = new Date().getFullYear();
+                    return `
+                        <div class="${commonClass}">
+                            <h1 class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 mb-4">${year}<br>WRAPPED</h1>
+                            <p class="text-xl text-slate-400">Your year in entertainment.</p>
+                        </div>
+                    `;
+                }
+
+                if (slide.type === 'vibe') {
+                    // Logic for Persona
+                    const topG = s.top_genres.map(g => g[0]);
+                    let persona = "Movie Buff";
+                    let emoji = "🎬";
+                    if (topG.includes('Science Fiction')) { persona = "Time Traveler"; emoji = "🚀"; }
+                    else if (topG.includes('Horror')) { persona = "Fearless"; emoji = "😱"; }
+                    else if (topG.includes('Comedy')) { persona = "Chief Laugh Officer"; emoji = "😂"; }
+                    else if (topG.includes('Romance')) { persona = "Hopeless Romantic"; emoji = "💝"; }
+
+                    return `
+                        <div class="${commonClass}">
+                            <div class="text-9xl mb-6 animate-bounce">${emoji}</div>
+                            <h2 class="text-3xl font-bold text-slate-300 uppercase tracking-widest mb-2">Your Vibe</h2>
+                            <h1 class="text-6xl font-black text-white">${persona}</h1>
+                            <p class="mt-4 text-xl text-indigo-300">${s.top_genres[0] ? s.top_genres[0][0] : ''} lover</p>
+                        </div>
+                    `;
+                }
+
+                if (slide.type === 'stats') {
+                    return `
+                        <div class="${commonClass}">
+                            <h2 class="text-2xl font-bold text-slate-400 uppercase tracking-widest mb-8">The Hard Numbers</h2>
+                            <div class="grid grid-cols-2 gap-8 w-full">
+                                <div class="bg-white/10 p-6 rounded-3xl backdrop-blur-md">
+                                    <div class="text-5xl font-black text-yellow-400">${Math.round(s.total_runtime_minutes / 60)}</div>
+                                    <div class="text-sm font-bold text-white uppercase mt-2">Hours Watched</div>
+                                </div>
+                                <div class="bg-white/10 p-6 rounded-3xl backdrop-blur-md">
+                                    <div class="text-5xl font-black text-green-400">${s.counts.watchlist + s.counts.watched}</div>
+                                    <div class="text-sm font-bold text-white uppercase mt-2">Total Items</div>
+                                </div>
+                                <div class="bg-white/10 p-6 rounded-3xl backdrop-blur-md">
+                                    <div class="text-5xl font-black text-blue-400">${s.counts.movies}</div>
+                                    <div class="text-sm font-bold text-white uppercase mt-2">Movies</div>
+                                </div>
+                                <div class="bg-white/10 p-6 rounded-3xl backdrop-blur-md">
+                                    <div class="text-5xl font-black text-purple-400">${s.counts.series}</div>
+                                    <div class="text-sm font-bold text-white uppercase mt-2">Shows</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                if (slide.type === 'genres') {
+                    const list = s.top_genres.slice(0, 5).map((g, i) => `
+                        <div class="flex i items-center gap-4 w-full p-3 bg-white/5 rounded-xl mb-2">
+                             <span class="text-xl font-bold text-slate-500">#${i + 1}</span>
+                             <span class="text-2xl font-bold text-white">${g[0]}</span>
+                        </div>
+                    `).join('');
+                    return `
+                        <div class="${commonClass} w-full max-w-md">
+                            <h2 class="text-3xl font-black text-white mb-6">Top Genres</h2>
+                            <div class="w-full text-left">
+                                ${list}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                if (slide.type === 'cast') {
+                    const actor = s.top_cast[0];
+                    return `
+                        <div class="${commonClass}">
+                            <div class="text-6xl mb-6 animate-pulse">⭐</div>
+                            <h2 class="text-xl font-bold text-yellow-400 uppercase tracking-widest mb-4">Star Struck</h2>
+                            <h1 class="text-5xl font-black text-white mb-2">${actor[0]}</h1>
+                            <p class="text-slate-400">You watched them ${actor[1]} times.</p>
+                        </div>
+                    `;
+                }
+
+                if (slide.type === 'heat') {
+                    // s.top_day is ["DayName", count]
+                    return `
+                        <div class="${commonClass}">
+                            <div class="text-6xl mb-6">🔥</div>
+                            <h2 class="text-xl font-bold text-red-400 uppercase tracking-widest mb-4">Binge Day</h2>
+                            <h1 class="text-5xl font-black text-white mb-2">${s.top_day[0]}s</h1>
+                            <p class="text-slate-400">Are your favorite day to disappear.</p>
+                        </div>
+                    `;
+                }
+
+                if (slide.type === 'completion') {
+                    return `
+                        <div class="${commonClass}">
+                            <div class="text-6xl mb-6">✅</div>
+                            <h2 class="text-xl font-bold text-green-400 uppercase tracking-widest mb-4">The Finisher</h2>
+                            <h1 class="text-6xl font-black text-white mb-2">${s.counts.completion_rate}%</h1>
+                            <p class="text-slate-400">Completion Rate. You don't leave things hanging.</p>
+                        </div>
+                    `;
+                }
+
+                if (slide.type === 'trivia') {
+                    const fact = s.trivia.length > 0 ? s.trivia[0] : "You really love movies!";
+                    return `
+                        <div class="${commonClass}">
+                            <div class="text-6xl mb-6">💡</div>
+                            <h2 class="text-xl font-bold text-indigo-400 uppercase tracking-widest mb-4">Did You Know?</h2>
+                            <p class="text-3xl font-bold text-white leading-relaxed">"${fact}"</p>
+                        </div>
+                    `;
+                }
+
+                if (slide.type === 'outro') {
+                    return `
+                        <div class="${commonClass}">
+                            <div class="bg-gradient-to-br from-indigo-600 to-purple-600 p-8 rounded-full mb-6 shadow-[0_0_100px_rgba(99,102,241,0.5)]">
+                                <span class="text-6xl font-black text-white">#1</span>
+                            </div>
+                            <h2 class="text-3xl font-bold text-white mb-2">Top 5% Viewer</h2>
+                            <p class="text-slate-400 mb-8">You watched more than 95% of the world!</p>
+                            <button onclick="StoryManager.close()" class="bg-white text-black font-bold py-3 px-8 rounded-full text-lg hover:scale-105 transition-transform">
+                                Explore Dashboard
+                            </button>
+                        </div>
+                    `;
+                }
+
+                if (slide.type === 'countries') {
+                    // Country Map
+                    const countryMap = {
+                        "US": "🇺🇸 Hollywood", "GB": "🇬🇧 UK", "NG": "🇳🇬 Nollywood", "IN": "🇮🇳 Bollywood",
+                        "KR": "🇰🇷 K-Drama", "JP": "🇯🇵 Anime", "FR": "🇫🇷 France", "Unknown": "🏳️ Earth"
+                    };
+
+                    const list = s.top_countries.slice(0, 4).map(c => `
+                        <div onclick="StoryManager.drillDownCountry('${c[0]}')" 
+                             class="bg-white/10 backdrop-blur-md rounded-2xl p-6 flex flex-col items-center cursor-pointer hover:bg-white/20 transition-all hover:scale-105 active:scale-95">
+                             <span class="text-4xl mb-2">${(countryMap[c[0]] || '').split(' ')[0] || '🏳️'}</span>
+                             <span class="font-bold text-xl">${(countryMap[c[0]] || c[0]).split(' ').slice(1).join(' ') || c[0]}</span>
+                             <span class="text-xs opacity-70 mt-1">${c[1]} Titles</span>
+                        </div>
+                    `).join('');
+
+                    return `
+                        <div class="${commonClass} w-full max-w-lg">
+                             <h2 class="text-2xl font-bold text-slate-300 uppercase tracking-widest mb-8">Global Taste</h2>
+                             <div class="grid grid-cols-2 gap-4 w-full">
+                                 ${list}
+                             </div>
+                             <p class="mt-6 text-sm text-white/50 animate-pulse">Tap a country to explore</p>
+                        </div>
+                    `;
+                }
             }
-        }
+        };
+
+        function closeAddModal() { document.getElementById('add-modal').classList.add('hidden'); }
+
+        // REMOVED DUPLICATE submitManualAdd() that was broken.
+
 
         // Init
 
@@ -1666,13 +2588,14 @@
             }
         }
         // Sync Token to Cookie for Extension
-        const token = localStorage.getItem('access_token');
-        if (token) {
-            document.cookie = `access_token=${token}; path=/; max-age=86400; SameSite=Lax`;
+        const cookieToken = localStorage.getItem('access_token');
+        if (cookieToken) {
+            document.cookie = `access_token=${cookieToken}; path=/; max-age=86400; SameSite=Lax`;
         }
 
         switchTab('watchlist'); // Default tab
         init();
+        StoryManager.init(); // Initialize Audio
         startAutoRefresh();
         async function loadSprint() {
             const res = await authFetch('/api/stats/sprint');

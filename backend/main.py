@@ -11,6 +11,8 @@ from datetime import datetime, timedelta
 from collections import Counter
 import os
 import logging
+# Force print for debugging
+print("Logger initialized")
 from jose import jwt, JWTError
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
@@ -42,6 +44,7 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     name = Column(String)
     picture = Column(String)
+    bio = Column(String, default="")
     is_public = Column(Boolean, default=True)
     
     history = relationship("WatchHistory", back_populates="user")
@@ -50,9 +53,14 @@ class User(Base):
     followers = relationship("Follower", foreign_keys="Follower.followed_id", back_populates="followed")
     following = relationship("Follower", foreign_keys="Follower.follower_id", back_populates="follower")
     
-    # New Social Fields
-    bio = Column(String, default="")
     notifications = relationship("Notification", back_populates="user")
+    
+    # Location
+    city = Column(String, nullable=True)
+    country = Column(String, nullable=True)
+
+# --- Database Setup & Migration ---
+
 
 class Follower(Base):
     __tablename__ = "followers"
@@ -88,6 +96,7 @@ class Notification(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     type = Column(String) # 'like', 'comment', 'follow'
     message = Column(String)
+    ref_id = Column(Integer, nullable=True)
     read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     
@@ -105,6 +114,7 @@ class WatchHistory(Base):
     status = Column(String, default="watchlist") # 'watchlist' or 'watched'
     added_at = Column(DateTime, default=datetime.utcnow)
     watched_at = Column(DateTime, nullable=True) # Set when moved to watched
+    rating = Column(Integer, default=0) # 0=Unrated, 1-5 Stars
     
     # Rich Metadata
     genres = Column(String) # Comma-separated string: "Action, Sci-Fi"
@@ -139,6 +149,10 @@ def run_migrations():
         if 'total_episodes' not in columns:
             logging.info("Migrating DB: Adding total_episodes column")
             conn.execute(text("ALTER TABLE history ADD COLUMN total_episodes INTEGER DEFAULT 1"))
+            
+        if 'rating' not in columns:
+            print("Migrating DB: Adding rating column")
+            conn.execute(text("ALTER TABLE history ADD COLUMN rating INTEGER DEFAULT 0"))
         
         if 'user_id' not in columns:
             logging.info("Migrating DB: Adding user_id column")
@@ -158,9 +172,25 @@ def run_migrations():
         if 'bio' not in u_cols:
             logging.info("Migrating DB: Adding bio column to users")
             conn.execute(text("ALTER TABLE users ADD COLUMN bio STRING DEFAULT ''"))
+            
+        if 'city' not in u_cols:
+            logging.info("Migrating DB: Adding city column to users")
+            conn.execute(text("ALTER TABLE users ADD COLUMN city VARCHAR"))
+
+        if 'country' not in u_cols:
+            logging.info("Migrating DB: Adding country column to users")
+            conn.execute(text("ALTER TABLE users ADD COLUMN country VARCHAR"))
 
         # --- User Notifications Relationship ---
         # No DB column needed for relationship, but ensuring logic is sound is good.
+        
+        # --- Notifications Table ---
+        result_n = conn.execute(text("PRAGMA table_info(notifications)"))
+        n_cols = [row[1] for row in result_n.fetchall()]
+        
+        if 'ref_id' not in n_cols:
+            logging.info("Migrating DB: Adding ref_id column to notifications")
+            conn.execute(text("ALTER TABLE notifications ADD COLUMN ref_id INTEGER"))
         
     except Exception as e:
         logging.error(f"Migration failed: {e}")
@@ -209,19 +239,19 @@ def repair_data():
         if not entries:
             return
 
-        logging.info(f"Scanning {len(entries)} entries for maintenance (Runtime & Metadata)...")
+        print(f"Scanning {len(entries)} entries for maintenance (Runtime & Metadata)...")
         
         for entry in entries:
             # Check if metadata is missing (including countries)
             needs_metadata = not (entry.production_companies and entry.cast and entry.keywords and entry.production_countries)
             
-            # Check if TV needs runtime fix (simplified check)
-            needs_runtime = (entry.media_type == 'tv' and entry.runtime == 0)
+            # Check if runtime is missing (for ANY type)
+            needs_runtime = (entry.runtime is None or entry.runtime == 0)
 
             if not (needs_metadata or needs_runtime):
                 continue
 
-            logging.info(f"Backfilling data for: {entry.title}")
+            print(f"Backfilling data for: {entry.title}")
             
             try:
                 # Fetch Details
@@ -250,13 +280,16 @@ def repair_data():
                     c_list = [c['iso_3166_1'] for c in details.get('production_countries', [])]
                     entry.production_countries = ", ".join(c_list)
 
-                    # 2. Update TV Runtime (if needed/applicable)
+                    # 2. Update Runtime
                     if entry.media_type == 'tv':
                         seasons = details.get('seasons', [])
                         total_min, total_eps = get_series_runtime_sync(entry.tmdb_id, seasons)
                         if total_min > 0:
                             entry.runtime = total_min
                             entry.total_episodes = total_eps
+                    else:
+                        # Movie
+                        entry.runtime = details.get('runtime', 0)
                     
                     db.commit()
                     
@@ -287,10 +320,12 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 class LogRequest(BaseModel):
     title: str
-    year: str | None = None
-    status: str = "watchlist"
-    media_type: str | None = None
-    watched_at: datetime | None = None
+    media_type: Optional[str] = 'movie'
+    status: str = 'watchlist'
+    rating: int = 0
+    year: Optional[str] = None
+    watched_at: Optional[datetime] = None
+    tmdb_id: Optional[int] = None
 
 class UpdateRequest(BaseModel):
     status: str # 'watched'
@@ -302,6 +337,9 @@ class CommentRequest(BaseModel):
 class ProfileUpdate(BaseModel):
     bio: str
     picture: Optional[str] = None
+    name: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
 
 def get_db():
     db = SessionLocal()
@@ -327,120 +365,7 @@ def read_history():
     with open("templates/dashboard.html", "r") as f:
         return f.read()
 
-# --- AUTH UTILS ---
-from fastapi.security import OAuth2PasswordBearer
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-class GoogleAuthRequest(BaseModel):
-    credential: str # Google ID Token
-
-def create_access_token(data: dict):
-    return jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
-
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    try:
-        # logging.info(f"Auth Check: Token={token[:10]}...") 
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = payload.get("sub")
-        if user_id is None:
-            logging.error("Auth Fail: No sub in payload")
-            raise HTTPException(status_code=401, detail="Invalid token")
-    except Exception as e:
-        logging.error(f"Auth Fail: {str(e)}")
-        raise HTTPException(status_code=401, detail="Invalid token")
-    
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    return user
-
-# --- AUTH ROUTES ---
-@app.post("/api/auth/google")
-def google_login(request: GoogleAuthRequest, db: Session = Depends(get_db)):
-    try:
-        # Verify Google Token
-        id_info = id_token.verify_oauth2_token(request.credential, google_requests.Request(), GOOGLE_CLIENT_ID)
-        
-        email = id_info['email']
-        name = id_info.get('name', 'Unknown')
-        picture = id_info.get('picture', '')
-        
-        # Find or Create User
-        user = db.query(User).filter(User.email == email).first()
-        if not user:
-            user = User(email=email, name=name, picture=picture)
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-        else:
-            # Update info
-            user.name = name
-            user.picture = picture
-            db.commit()
-            
-        # Issue JWT
-        access_token = create_access_token(data={"sub": str(user.id)})
-        return {"access_token": access_token, "user": {"name": user.name, "picture": user.picture}}
-        
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid Google Token")
-
-@app.get("/api/users/me")
-def read_users_me(current_user: User = Depends(get_current_user)):
-    return {"name": current_user.name, "picture": current_user.picture}
-
-# --- LEADERBOARD ---
-@app.get("/api/leaderboard")
-def get_leaderboard(db: Session = Depends(get_db)):
-    # Aggregation: Get total runtime per user
-    users = db.query(User).filter(User.is_public == True).all()
-    leaderboard = []
-    
-    for user in users:
-        # Calculate total watched hours
-        watched = db.query(WatchHistory).filter(
-            WatchHistory.user_id == user.id, 
-            WatchHistory.status == 'watched'
-        ).all()
-        
-        total_minutes = sum([(item.runtime or 0) * (item.total_episodes or 1) for item in watched])
-        # Note: Above logic is simplified; exact logic (used in stats) already puts total in runtime.
-        # Wait, my "Exact Series Runtime" change put the TOTAL in `.runtime`. 
-        # So for Series, runtime IS the total. For Movies, it's also total.
-        # So I assume `item.runtime` IS the total duration for that entry.
-        # BUT, `get_stats` logic was: `duration = item.runtime`. 
-        # But wait, `get_stats` logic had: `episodes = item.total_episodes if item.total_episodes else 1` -> `duration = runtime * episodes`.
-        # I changed `repair_tv_data` to set `runtime = total_series_minutes`. 
-        # So `total_episodes` is just metadata now? 
-        # Let's check `get_stats` logic in previous turn again.
-        # Ah, in Step 532 I updated `get_stats` to have `duration = item.runtime`. Oh wait, I see `duration = (item.runtime if item.runtime else 0) * episodes` in the replace block I sent?
-        # Let me re-read Step 532.
-        # Step 532 replace block for get_stats:
-        # `duration = item.runtime if item.runtime else 0`
-        # `total_runtime_minutes += duration`
-        # Wait, I might have messed up `get_stats` in Step 532 logic vs Plan logic?
-        # Step 532 code content for get_stats: "duration = item.runtime if item.runtime else 0". Correct, removed multiplication.
-        # Okay, so here just use `item.runtime`.
-        
-        total_minutes = sum([item.runtime or 0 for item in watched])
-        hours = int(total_minutes / 60)
-        
-        # Determine Vibe (Top Genre)
-        genres = []
-        for item in watched:
-            if item.genres:
-                genres.extend([g.strip() for g in item.genres.split(',')])
-        top_genre = Counter(genres).most_common(1)[0][0] if genres else "Newbie"
-        
-        leaderboard.append({
-            "name": user.name,
-            "picture": user.picture,
-            "hours": hours,
-            "vibe": top_genre
-        })
-    
-    # Sort desc
-    return sorted(leaderboard, key=lambda x: x['hours'], reverse=True)
 
 
 # --- AUTH UTILS ---
@@ -500,11 +425,108 @@ def google_login(request: GoogleAuthRequest, db: Session = Depends(get_db)):
 
 @app.put("/api/users/me")
 def update_profile(request: ProfileUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # Uniqueness Check
+    if request.name and request.name != current_user.name:
+        existing = db.query(User).filter(User.name == request.name).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Username already taken")
+        current_user.name = request.name
+        
     current_user.bio = request.bio
     if request.picture:
         current_user.picture = request.picture
+    
+    # Update Location
+    if request.city is not None:
+        current_user.city = request.city
+    if request.country is not None:
+        current_user.country = request.country
+        
     db.commit()
-    return {"status": "updated", "bio": current_user.bio, "picture": current_user.picture}
+    return {
+        "status": "updated", 
+        "bio": current_user.bio, 
+        "picture": current_user.picture, 
+        "name": current_user.name,
+        "city": current_user.city,
+        "country": current_user.country
+    }
+
+# --- EXPORT ---
+import csv
+import io
+from fastapi.responses import StreamingResponse
+
+@app.get("/api/export")
+def export_data(type: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # type: 'watchlist' or 'history'
+    
+    stream = io.StringIO()
+    writer = csv.writer(stream)
+    
+    if type == 'watchlist':
+        items = db.query(WatchHistory).filter(
+            WatchHistory.user_id == current_user.id,
+            WatchHistory.status == 'watchlist'
+        ).all()
+        writer.writerow(["Title", "Year", "Type", "Added At"])
+        for item in items:
+            writer.writerow([item.title, item.year, item.media_type, item.added_at])
+            
+        filename = "watchlist_export.csv"
+        
+    elif type == 'history':
+        items = db.query(WatchHistory).filter(
+            WatchHistory.user_id == current_user.id,
+            WatchHistory.status == 'watched'
+        ).all()
+        writer.writerow(["Title", "Year", "Type", "Rating", "Watched At", "Runtime (m)", "Genres"])
+        for item in items:
+            writer.writerow([
+                item.title, 
+                item.year, 
+                item.media_type, 
+                item.rating, 
+                item.watched_at, 
+                item.runtime,
+                item.genres
+            ])
+            
+        filename = "watched_history_export.csv"
+    
+    else:
+        raise HTTPException(status_code=400, detail="Invalid export type")
+    
+    stream.seek(0)
+    response = StreamingResponse(iter([stream.getvalue()]), media_type="text/csv")
+    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    return response
+
+# --- Social Feed Logic for Single Item (Notifications) ---
+@app.get("/api/social/feed/{history_id}")
+def get_feed_item(history_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    item = db.query(WatchHistory).filter(WatchHistory.id == history_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+        
+    is_liked = db.query(Like).filter(Like.user_id == current_user.id, Like.history_id == item.id).first() is not None
+    like_count = db.query(Like).filter(Like.history_id == item.id).count()
+    comments = db.query(Comment).filter(Comment.history_id == item.id).order_by(Comment.created_at.asc()).all()
+    
+    c_list = [{"user": c.user.name, "content": c.content} for c in comments]
+    
+    return {
+        "id": item.id, 
+        "user_name": item.user.name,
+        "user_picture": item.user.picture,
+        "title": item.title,
+        "poster_path": item.poster_path,
+        "rating": item.rating,
+        "date": item.watched_at.isoformat() if item.watched_at else None,
+        "is_liked": is_liked,
+        "like_count": like_count,
+        "comments": c_list
+    }
 
 @app.post("/api/users/upload-avatar")
 async def upload_avatar(file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
@@ -532,38 +554,66 @@ def read_users_me(current_user: User = Depends(get_current_user)):
 
 # --- LEADERBOARD ---
 @app.get("/api/leaderboard")
-def get_leaderboard(db: Session = Depends(get_db)):
-    # Aggregation: Get total runtime per user
-    users = db.query(User).filter(User.is_public == True).all()
+def get_leaderboard(scope: str = "global", genre: str = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # Scope check
+    query = db.query(User).filter(User.is_public == True)
+    
+    if scope == 'friends':
+        friend_ids = db.query(Follower.followed_id).filter(Follower.follower_id == current_user.id).subquery()
+        query = query.filter(or_(User.id == current_user.id, User.id.in_(friend_ids)))
+    elif scope == 'city':
+        if not current_user.city: return [] 
+        query = query.filter(User.city == current_user.city, User.city.isnot(None))
+    elif scope == 'country':
+        if not current_user.country: return []
+        query = query.filter(User.country == current_user.country, User.country.isnot(None))
+        
+    users = query.all()
     leaderboard = []
     
     for user in users:
-        # Calculate total watched hours
-        watched = db.query(WatchHistory).filter(
+        # Filter WatchHistory by Genre if requested
+        history_query = db.query(WatchHistory).filter(
             WatchHistory.user_id == user.id, 
             WatchHistory.status == 'watched'
-        ).all()
+        )
         
-        # Calculate total minutes (sum of item.runtime)
+        if genre and genre != "All":
+            # Loose string matching for genre
+            history_query = history_query.filter(WatchHistory.genres.ilike(f"%{genre}%"))
+            
+        watched = history_query.all()
+        
+        if not watched and genre: continue # Skip user if no history for this genre
+        
         total_minutes = sum([item.runtime or 0 for item in watched])
         hours = int(total_minutes / 60)
         
-        # Determine Vibe (Top Genre)
-        genres = []
+        # Determine Vibe (Top Genre) - Recalculate based on filtered view or global?
+        # Let's show their Vibe for *this specific genre* (likely the genre itself) or global vibe?
+        # User output expects "Vibe". If filtered by Sci-Fi, Vibe is likely Sci-Fi. 
+        # But showing their overall persona is maybe more interesting? 
+        # Let's keep global vibe calculation for context, or just empty if filtered.
+        # Actually, let's just grab their top genre from the *filtered* list to see specifically what sub-genre they like?
+        # No, let's keep it simple: Vibe = Top Genre of the filtered set.
+        
+        genres_list = []
         for item in watched:
             if item.genres:
-                genres.extend([g.strip() for g in item.genres.split(',')])
-        top_genre = Counter(genres).most_common(1)[0][0] if genres else "Newbie"
+                genres_list.extend([g.strip() for g in item.genres.split(',')])
+        top_genre = Counter(genres_list).most_common(1)[0][0] if genres_list else "Newbie"
         
         leaderboard.append({
             "name": user.name,
             "picture": user.picture,
             "hours": hours,
-            "vibe": top_genre
+            "vibe": top_genre,
+            "city": user.city or "",
+            "country": user.country or ""
         })
     
     # Sort desc
-    return sorted(leaderboard, key=lambda x: x['hours'], reverse=True)
+    return sorted(leaderboard, key=lambda x: x['hours'], reverse=True)[:100]
 
 # --- LOGIC: THE INTELLIGENCE LAYER ---
 async def search_tmdb(title: str, year: str = None, media_type_hint: str = None):
@@ -592,6 +642,24 @@ async def search_tmdb(title: str, year: str = None, media_type_hint: str = None)
         res, m_type = await check_endpoint(second_choice[0], second_choice[1])
         return res, m_type
 
+@app.get("/api/tmdb/search")
+async def api_search_tmdb(q: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not q: return []
+    async with httpx.AsyncClient() as client:
+        params = {"api_key": TMDB_API_KEY, "query": q}
+        
+        # Parallel fetch movie and tv? Or just multi-search? 
+        # TMDB has multi.
+        url = "https://api.themoviedb.org/3/search/multi"
+        res = await client.get(url, params=params)
+        if res.status_code == 200:
+            data = res.json()
+            return [
+                x for x in data.get('results', []) 
+                if x.get('media_type') in ['movie', 'tv']
+            ]
+        return []
+
 async def get_tmdb_details(tmdb_id: int, media_type: str):
     async with httpx.AsyncClient() as client:
         url = f"https://api.themoviedb.org/3/{media_type}/{tmdb_id}"
@@ -607,7 +675,11 @@ async def log_content(request: LogRequest, db: Session = Depends(get_db), curren
     logging.info(f"User {current_user.name} logging: '{clean_title}'")
 
     # 1. Enrich Data
-    tmdb_result, media_type = await search_tmdb(clean_title, request.year, request.media_type)
+    if request.tmdb_id:
+        tmdb_result = {"id": request.tmdb_id, "title": request.title, "name": request.title} # Minimal mock, details will fetch rest
+        media_type = request.media_type
+    else:
+        tmdb_result, media_type = await search_tmdb(clean_title, request.year, request.media_type)
     
     if not tmdb_result:
         raise HTTPException(status_code=404, detail="Content not found")
@@ -619,7 +691,11 @@ async def log_content(request: LogRequest, db: Session = Depends(get_db), curren
     ).first()
     
     if existing_entry:
-        return {"status": "success", "saved": existing_entry.title, "note": "Already in watchlist"}
+        if request.status == 'watched' and existing_entry.status == 'watchlist':
+             # Allow upscaling from watchlist to watched
+             pass 
+        else:
+             return {"status": "success", "saved": existing_entry.title, "note": "Already in library"}
 
     # 2. Get Details
     details = await get_tmdb_details(tmdb_result['id'], media_type)
@@ -736,6 +812,23 @@ def delete_entry(id: int, db: Session = Depends(get_db), current_user: User = De
 @app.get("/api/history")
 def get_history(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return db.query(WatchHistory).filter(WatchHistory.user_id == current_user.id).order_by(WatchHistory.added_at.desc()).all()
+
+@app.put("/api/log/{tmdb_id}/rating")
+def update_rating(tmdb_id: int, rating: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    item = db.query(WatchHistory).filter(
+        WatchHistory.tmdb_id == tmdb_id,
+        WatchHistory.user_id == current_user.id
+    ).first()
+    
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+        
+    if rating < 0 or rating > 5:
+        raise HTTPException(status_code=400, detail="Rating must be 0-5")
+        
+    item.rating = rating
+    db.commit()
+    return {"status": "updated", "rating": rating}
 
 @app.get("/api/stats/sprint")
 def get_biweekly_stats(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -868,21 +961,25 @@ def get_stats(db: Session = Depends(get_db), current_user: User = Depends(get_cu
             day_name = item.watched_at.strftime("%A")
             activity_log[month_key] = activity_log.get(month_key, 0) + 1
             
-            # Temporal Stats
-            # We need persistent trackers for these, defined outside loop
-            # Check below loop
+            # Daily Map for Heatmap
+            daily_key = item.watched_at.strftime("%Y-%m-%d")
+            # We need a persistent counter for this, initializing outside loop
             
-    # Computations for Temporal (moving out of loop for cleaner logic, but need accumulation)
-    # Refactoring slightly to use Counters for Day/Month
+    # Computations for Temporal (moving out of loop for cleaner logic)
     month_counts = Counter()
     day_counts = Counter()
+    daily_activity_map = {} # YYYY-MM-DD -> count
     
     for item in history:
         if item.status == 'watched' and item.watched_at:
             month_counts[item.watched_at.strftime("%B")] += 1
             day_counts[item.watched_at.strftime("%A")] += 1
+            # Heatmap Data
+            d_key = item.watched_at.strftime("%Y-%m-%d")
+            daily_activity_map[d_key] = daily_activity_map.get(d_key, 0) + 1
 
     # Computations
+    print(f"DEBUG: Total Runtime Minutes: {total_runtime_minutes} | Watched Count: {watched_count}")
     avg_runtime = total_runtime_minutes / watched_count if watched_count > 0 else 0
     avg_time_to_watch_hours = (avg_runtime / 60)
     
@@ -927,6 +1024,24 @@ def get_stats(db: Session = Depends(get_db), current_user: User = Depends(get_cu
             else:
                  trivia.append(f"You're a fan of {code} cinema. Worldwide traveler!")
 
+        # 3. New Analytics
+        # Completion Rate
+        total_items = watched_count + watchlist_count
+        completion_rate = round((watched_count / total_items * 100)) if total_items > 0 else 0
+        
+        # Rating Stats
+        rated_items = [i.rating for i in history if i.status == 'watched' and i.rating > 0]
+        avg_rating = round(sum(rated_items) / len(rated_items), 1) if rated_items else 0
+        perfect_scores = len([r for r in rated_items if r == 5])
+        
+        # Runtime Distribution buckets
+        runtime_dist = {"Short (<90m)": 0, "Medium (90-120m)": 0, "Long (>120m)": 0}
+        for item in history:
+            if item.status == 'watched' and item.media_type == 'movie' and item.runtime:
+                if item.runtime < 90: runtime_dist["Short (<90m)"] += 1
+                elif item.runtime <= 120: runtime_dist["Medium (90-120m)"] += 1
+                else: runtime_dist["Long (>120m)"] += 1
+                
         # 3. Binge Tease
         if avg_time_to_watch_hours < 24:
             trivia.append("You devour content faster than a black hole.")
@@ -962,10 +1077,19 @@ def get_stats(db: Session = Depends(get_db), current_user: User = Depends(get_cu
             "watchlist": watchlist_count,
             "watched": watched_count,
             "movies": movie_count,
-            "series": series_count
+            "series": series_count,
+            "completion_rate": locals().get('completion_rate', 0),
+            "avg_rating": locals().get('avg_rating', 0),
+            "perfect_scores": locals().get('perfect_scores', 0)
         },
+        "avg_hours_to_watch": round(avg_time_to_watch_hours, 2),
         "total_runtime_minutes": total_runtime_minutes,
-        "avg_runtime": avg_runtime,
+        "split_runtime": {
+            "movies": movie_runtime_minutes,
+            "series": series_runtime_minutes
+        },
+        "runtime_distribution": locals().get('runtime_dist', {}),
+        "daily_activity": daily_activity_map,
         "top_genres": top_genres,
         "top_years": top_years,
         "top_studios": top_studios,
@@ -973,8 +1097,8 @@ def get_stats(db: Session = Depends(get_db), current_user: User = Depends(get_cu
         "top_crew": top_crew,
         "top_countries": country_count.most_common(10),
         "top_keywords": top_keywords,
-        "activity_log": sorted_activity,
-        "decades": sorted_decades,
+        "monthly_activity": sorted_activity,
+        "decade_distribution": sorted_decades,
         "trivia": trivia,
         "top_month": top_month[0] if top_month else ("None", 0),
         "top_day": top_day[0] if top_day else ("None", 0)
@@ -986,9 +1110,6 @@ def get_stats_details(category: str, value: str, db: Session = Depends(get_db), 
     query = db.query(WatchHistory).filter(WatchHistory.user_id == current_user.id).filter(WatchHistory.status == 'watched')
     
     value = value.lower()
-    
-    # We must fetch all and filter in python because comma-separated strings are hard to exact-match in SQL LIKE efficiently for this simple DB structure
-    # Actually LIKE %value% is fine for now
     
     if category == 'cast':
         query = query.filter(WatchHistory.cast.ilike(f"%{value}%"))
@@ -1002,34 +1123,7 @@ def get_stats_details(category: str, value: str, db: Session = Depends(get_db), 
         query = query.filter(WatchHistory.crew.ilike(f"%{value}%"))
         
     results = query.all()
-    # Return limited fields to save bandwidth? No, renderCard needs full object usually.
     return results
-
-
-
-    return {
-        "counts": {
-            "watchlist": watchlist_count,
-            "watched": watched_count,
-            "movies": movie_count,
-            "series": series_count
-        },
-        "avg_hours_to_watch": round(avg_time_to_watch_hours, 2),
-        "total_runtime_minutes": total_runtime_minutes,
-        "split_runtime": {
-            "movies": movie_runtime_minutes,
-            "series": series_runtime_minutes
-        },
-        "top_genres": top_genres,
-        "top_years": top_years,
-        "top_studios": top_studios,
-        "top_cast": top_cast,
-        "top_keywords": top_keywords,
-        "top_countries": country_count.most_common(5),
-        "trivia": trivia,
-        "monthly_activity": sorted_activity,
-        "decade_distribution": sorted_decades
-    }
 
 
 @app.get("/api/recommendations")
@@ -1042,15 +1136,19 @@ async def get_recommendations(db: Session = Depends(get_db), current_user: User 
     if not full_history:
         return await fetch_trending_content()
 
-    seen_ids = {h.tmdb_id for h in full_history}
+    seen_lookup = set()
+    for h in full_history:
+        # Robustly handle ID types and ensure media_type consistency
+        try:
+            tid = int(h.tmdb_id)
+            mtype = (h.media_type or 'movie').lower()
+            seen_lookup.add((tid, mtype))
+        except:
+            pass
     
     # Priority Seeds:
-    # - 5 Most Recent
-    # - 3 Highest Rated (Favorites)
-    # - 2 Random Discovery
-    
     sorted_by_date = sorted(full_history, key=lambda x: x.watched_at or x.added_at or datetime.min, reverse=True)
-    favorites = sorted([h for h in full_history if h.rating and h.rating >= 4], key=lambda x: x.rating, reverse=True)
+    favorites = sorted([h for h in full_history if h.status == 'watched'], key=lambda x: x.watched_at or datetime.min, reverse=True)
     
     seeds = []
     seeds.extend(sorted_by_date[:5])
@@ -1074,11 +1172,11 @@ async def get_recommendations(db: Session = Depends(get_db), current_user: User 
     candidates = {} # tmdb_id -> { count, data, sources: [] }
 
     async with httpx.AsyncClient() as client:
-        # Fetch in parallel? For now sequential loop is safer for rate limits, or use limited concurrency.
-        # TMDB doesn't like huge bursts. Sequential is fine for ~10 requests.
         for item in unique_seeds:
             try:
-                url = f"https://api.themoviedb.org/3/{item.media_type}/{item.tmdb_id}/recommendations"
+                # Infer type for endpoint
+                seed_type = (item.media_type or 'movie').lower()
+                url = f"https://api.themoviedb.org/3/{seed_type}/{item.tmdb_id}/recommendations"
                 res = await client.get(url, params={"api_key": TMDB_API_KEY})
                 if res.status_code == 200:
                     results = res.json().get('results', [])
@@ -1087,9 +1185,16 @@ async def get_recommendations(db: Session = Depends(get_db), current_user: User 
                     
                     for rec in results[:10]: # Analyze top 10 from each seed
                         mid = rec['id']
-                        if mid in seen_ids: continue
+                        # Recs from a movie endpoint are movies, etc.
+                        rec_type = seed_type 
+                        
+                        # Strict Filter
+                        if (mid, rec_type) in seen_lookup: continue
                         
                         if mid not in candidates:
+                            # Inject media_type if missing (TMDB specific endpoints don't always return it)
+                            if 'media_type' not in rec: rec['media_type'] = rec_type
+                            
                             candidates[mid] = {
                                 'data': rec,
                                 'count': 0,
@@ -1111,7 +1216,8 @@ async def get_recommendations(db: Session = Depends(get_db), current_user: User 
                 if res.status_code == 200:
                     trending = res.json().get('results', [])
                     for t in trending:
-                        if t['id'] not in seen_ids and t['id'] not in candidates:
+                        mt = t.get('media_type', 'movie')
+                        if (t['id'], mt) not in seen_lookup and t['id'] not in candidates:
                              candidates[t['id']] = {
                                 'data': t,
                                 'count': 1,
@@ -1287,7 +1393,7 @@ def add_comment(history_id: int, request: CommentRequest, db: Session = Depends(
 @app.get("/api/notifications")
 def get_notifications(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     notifs = db.query(Notification).filter(Notification.user_id == current_user.id, Notification.read == False).order_by(Notification.created_at.desc()).all()
-    return [{"message": n.message, "type": n.type, "created_at": n.created_at} for n in notifs]
+    return [{"id": n.id, "message": n.message, "type": n.type, "ref_id": n.ref_id, "created_at": n.created_at} for n in notifs]
 
 @app.post("/api/notifications/clear")
 def clear_notifications(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -1374,6 +1480,7 @@ def add_comment(history_id: int, request: CommentRequest, db: Session = Depends(
     
     # Notify
     if item.user_id != current_user.id:
+        logging.info(f"Posting notification for user {item.user_id} from {current_user.name}")
         create_notification(db, item.user_id, 'comment', f"{current_user.name} roasted: {request.content}", history_id)
         
     return {"status": "commented"}
@@ -1391,17 +1498,15 @@ def clear_notifications(db: Session = Depends(get_db), current_user: User = Depe
 
 @app.get("/api/social/feed")
 def get_friend_feed(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # 1. Get IDs of people I follow
+    # 1. Get IDs of people I follow AND myself (so I can see replies to my own stuff)
     following_ids = [f.followed_id for f in current_user.following]
-    # Include self for testing if list is empty? No, strict following.
-    if not following_ids:
-        return []
-        
+    following_ids.append(current_user.id)
+    
     # 2. Get their recent watch history
     feed = db.query(WatchHistory).filter(
         WatchHistory.user_id.in_(following_ids),
         WatchHistory.status == 'watched'
-    ).order_by(WatchHistory.watched_at.desc()).limit(20).all()
+    ).order_by(WatchHistory.watched_at.desc()).limit(30).all()
     
     # 3. Format with interaction data
     result = []
@@ -1428,6 +1533,27 @@ def get_friend_feed(db: Session = Depends(get_db), current_user: User = Depends(
         })
     return result
     
+# Serve Templates (Last to avoid overriding API)
+from fastapi.responses import FileResponse, RedirectResponse
+
+# Explicit Routes for robustness
+@app.get("/login")
+@app.get("/login.html")
+async def serve_login():
+    return FileResponse("templates/login.html")
+
+@app.get("/dashboard")
+@app.get("/dashboard.html")
+async def serve_dashboard():
+    return FileResponse("templates/dashboard.html")
+
+@app.get("/")
+async def root():
+    return RedirectResponse(url="/dashboard.html")
+
+# Serve other static assets (if any) from template dir as fallback, or strict static
+app.mount("/static", StaticFiles(directory="templates"), name="templates_static")
+
 if __name__ == "__main__":
     import uvicorn
     import threading
