@@ -1,33 +1,32 @@
 # Watched
 
-> **Your Media. Your Data. Your Vibe.**
-> A next-generation personal media tracker that replaces spreadsheets and basic apps with a premium, data-driven dashboard.
+A personal dashboard to track movies and TV shows, focused on your data habits rather than just lists.
 
-![Watched Dashboard](https://via.placeholder.com/1200x600?text=Watched+Dashboard+Preview)
+I built this because I wanted to see my "Wrapped" stats year-round, not just in December. It serves as a self-hosted alternative to Letterboxd or IMDb, designed to give you better insight into *how* you watch.
 
-## What makes this different?
-Unlike standard trackers (IMDb, Letterboxd), **Watched** is built for **self-discovery**. It doesn't just list what you watched; it tells you *who you are*.
+## Features
 
-*   **2025 Wrapped... Every Day**: Generate an interactive, Instagram-Story style "Wrapped" report any time you want. See your year in review, instantly.
-*   **The Sprint**: Tracks your watching habits over the last 14 days. Are you slacking? Binging? The dashboard knows.
-*   **Smart Recommendations**: A recommendation engine that actually respects your history. No more suggesting movies you've already seen.
-*   **Social Leaderboards**: Compare "Hours Watched" and "Vibe" with friends in your city or country.
-*   **Premium UI**: Dark mode, glassmorphism, and fluid animations powered by Tailwind CSS.
+*   **Real-time Wrapped**: Generates an Instagram-Story style report of your year at any moment.
+*   **The Sprint**: A bi-weekly tracker to see your recent watching velocity.
+*   **Recommendation Engine**: Filters out what you've likely seen and finds hidden gems based on your history.
+*   **Private Leaderboards**: See how you stack up against friends in your city (e.g., "Most Watched in Lagos").
+*   **Chrome Extension**: Adds a "Mark Watched" button directly to Google Search results.
 
 ## Tech Stack
-*   **Backend**: Python, FastAPI, SQLite, SQLAlchemy.
-*   **Frontend**: HTML5, Vanilla JavaScript, Tailwind CSS (CDN).
-*   **Data Source**: TMDB (The Movie Database) API.
-*   **Authentication**: Google OAuth + JWT.
 
-## Getting Started
+*   **Backend**: Python (FastAPI), SQLite (Local) / PostgreSQL (Prod), SQLAlchemy
+*   **Frontend**: HTML5, Vanilla JS, Tailwind CSS
+*   **Auth**: Google OAuth + JWT
+*   **Data**: TMDB API
+
+## Setup
 
 ### Prerequisites
 *   Python 3.8+
-*   A TMDB API Key (Get one at [themoviedb.org](https://www.themoviedb.org/documentation/api))
-*   Google OAuth Client ID (for login)
+*   TMDB API Key
+*   Google Client ID
 
-### Installation
+### Local Development
 
 1.  **Clone the repo**
     ```bash
@@ -35,56 +34,29 @@ Unlike standard trackers (IMDb, Letterboxd), **Watched** is built for **self-dis
     cd watched
     ```
 
-2.  **Setup the Backend**
+2.  **Start Backend**
     ```bash
     cd backend
     python3 -m venv venv
-    source venv/bin/activate  # or venv\Scripts\activate on Windows
+    source venv/bin/activate
     pip install -r requirements.txt
-    ```
-
-3.  **Environment Variables**
-    Create a `.env` file in `backend/` or export them:
-    ```bash
-    export TMDB_API_KEY="your_tmdb_key_here"
-    export GOOGLE_CLIENT_ID="your_google_client_id"
-    export SECRET_KEY="super_secret_key"
-    ```
-    *(Note: The `main.py` has defaults for dev, but use env vars for security!)*
-
-4.  **Run the Server**
-    ```bash
     uvicorn main:app --reload
     ```
-    The app will be live at `http://localhost:8000`.
+    App runs at `http://localhost:8000`.
 
-## Chrome Extension (Optional)
-This project includes a Chrome Extension to overlay "Mark Watched" buttons directly on Google Search results.
+3.  **Environment**
+    Export your keys in the terminal or use a `.env` file:
+    ```bash
+    export TMDB_API_KEY="..."
+    export GOOGLE_CLIENT_ID="..."
+    export SECRET_KEY="..."
+    ```
 
-1.  Go to `chrome://extensions/` in Chrome.
-2.  Enable "Developer mode" (top right).
-3.  Click "Load unpacked".
-4.  Select the `extensions/` folder from this project.
-
-## Features in Depth
-
-### The Dashboard
-Your command center. View your Watchlist, History, and Up Next recommendations. Filter by genre, rating, or year.
-
-### Story Mode
-Click "2025 Wrapped" to enter an immersive story experience.
-*   **Intro**: Your year at a glance.
-*   **The Vibe**: Your top genre and personality roast.
-*   **Stats**: Total hours, movies vs TV split.
-*   **Top Cast**: Who did you watch the most?
-
-### Private Social
-Add friends to see a private leaderboard.
-*   **City/Country Rank**: Who is the #1 watcher in Lagos?
-*   **Vibe Check**: See what your friends are into (e.g., "Sci-Fi", "Horror").
+## Deployment
+See [DEPLOY_RENDER.md](DEPLOY_RENDER.md) for a guide on deploying to Render.
 
 ## License
-MIT License. It's your code.
+MIT.
 
 ---
 *Built with ❤️ by Obafemi*
