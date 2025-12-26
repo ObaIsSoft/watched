@@ -371,6 +371,11 @@ def read_root():
     with open(os.path.join(BASE_DIR, "templates/dashboard.html"), "r") as f:
         return f.read()
 
+@app.get("/privacy", response_class=HTMLResponse)
+def read_privacy():
+    with open(os.path.join(BASE_DIR, "templates/privacy.html"), "r") as f:
+        return f.read()
+
 @app.get("/login", response_class=HTMLResponse)
 def read_login():
     with open(os.path.join(BASE_DIR, "templates/login.html"), "r") as f:
