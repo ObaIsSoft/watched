@@ -42,10 +42,8 @@ Since your `manifest.json` asks for `host_permissions` ("watched.onrender.com") 
 
 1.  **Privacy Policy URL:** You need a link. You can host a simple MD page on your Render site or GitHub Pages.
 2.  **Permissions Justification:**
-    *   **ActiveTab/Scripting:** "To identify movie titles on Google Search results."
-    *   **Storage/Cookies:** "To authenticate with the user's Watched account to save their history."
-
-    *   **Host Permissions:** "To communicate with the backend API (watched.onrender.com) to save viewing history."
+    *   **Cookies:** "To authenticate with the user's Watched account (read the access_token cookie) to securely authorize API requests."
+    *   **Host Permissions:** "To communicate with the backend API (watched.onrender.com) and read the authentication cookie from that domain."
 
 ## 6. Test Instructions (Distribution Tab)
 The web store requires credentials to test the extension if it's gated by login. Since you use Google Sign-In:

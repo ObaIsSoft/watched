@@ -336,7 +336,7 @@
                 <!-- 3. Activity -->
                 <div class="glass rounded-2xl p-6">
                     <h3 class="text-lg font-semibold mb-4 text-slate-300">Watch Activity</h3>
-                    <div class="h-48">
+                    <div class="h-48" id="activity-heatmap-container">
                         <canvas id="activityChart"></canvas>
                     </div>
                 </div>
@@ -1669,14 +1669,17 @@
                 });
 
                 // C. Activity (Calendar Heatmap)
-                destroyChart('activityChart'); // We might not use Chart.js for this if we do a custom grid, but let's see.
-                // Actually, Chart.js isn't great for GitHub style heatmaps.
-                // Let's manually render a grid into the container?
-                // Or use a Chart.js Matrix plugin.
-                // Simpler: Just generate HTML grid.
-                const activityContainer = document.getElementById('activityChart').parentElement;
+                // 3. Charts
+                
+                // C. Activity (Calendar Heatmap)
+                // We don't use destroyChart('activityChart') because we replace the innerHTML entirely.
+                // Target the stable container directly.
+                const activityContainer = document.getElementById('activity-heatmap-container');
+                
                 // Clear canvas and reuse container
-                activityContainer.innerHTML = '';
+                if (activityContainer) {
+                    activityContainer.innerHTML = '';
+                }
 
                 const heatmapMap = stats.daily_activity || {};
                 const today = new Date();
