@@ -1461,6 +1461,20 @@ def update_rating(tmdb_id: int, rating: int, db: Session = Depends(get_db), curr
     db.commit()
     return {"status": "updated", "rating": rating}
 
+@app.get("/api/admin/fix-xp")
+def fix_xp_migration(key: str = None, db: Session = Depends(get_db)):
+    # Simple protection
+    if key != "temp_fix_2026":
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    users = db.query(User).all()
+    count = 0
+    for user in users:
+        recalculate_xp(user, db)
+        count += 1
+        
+    return {"status": "completed", "users_processed": count}
+
 @app.get("/api/stats/sprint")
 def get_biweekly_stats(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Stats for last 14 days (The Sprint)"""
