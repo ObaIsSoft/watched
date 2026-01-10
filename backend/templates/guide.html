@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watched V2 - User Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: white;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .gradient-text {
+            background: linear-gradient(to right, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+
+<body class="p-8 max-w-4xl mx-auto">
+
+    <div class="flex justify-between items-center mb-12">
+        <h1 class="text-4xl font-bold gradient-text">Watched V2 Guide</h1>
+        <a href="/" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg font-bold transition-colors">Back to
+            Dashboard</a>
+    </div>
+
+    <!-- 1. Getting Started & Privacy -->
+    <section class="mb-16">
+        <h2 class="text-2xl font-bold mb-6 flex items-center gap-2"><i data-lucide="shield"></i> Account & Privacy</h2>
+        <div class="glass p-6 rounded-2xl space-y-4">
+            <div>
+                <h3 class="font-bold text-lg text-indigo-400">Google Login</h3>
+                <p class="text-slate-400 text-sm">We use Google for secure authentication. We only access your email,
+                    name, and profile picture. No other Google data is touched.</p>
+            </div>
+            <div>
+                <h3 class="font-bold text-lg text-indigo-400">Storage</h3>
+                <p class="text-slate-400 text-sm">Your data (history, ratings, lists) is stored securely in our
+                    database. You own it—export it anytime via the Profile settings.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 2. Tracking & Lists -->
+    <section class="mb-16">
+        <h2 class="text-2xl font-bold mb-6 flex items-center gap-2"><i data-lucide="list"></i> Tracking Content</h2>
+        <div class="grid md:grid-cols-2 gap-6">
+            <div class="glass p-6 rounded-2xl">
+                <h3 class="font-bold text-lg mb-2 text-white">Watchlist</h3>
+                <p class="text-slate-400 text-sm">Found something interesting? Add it to your
+                    <strong>Watchlist</strong>. It stays there until you mark it as watched. Perfect for planning your
+                    next movie night.
+                </p>
+            </div>
+            <div class="glass p-6 rounded-2xl">
+                <h3 class="font-bold text-lg mb-2 text-white">History & Rewatches</h3>
+                <p class="text-slate-400 text-sm">Log what you've seen. If you watch a movie again, just log it again!
+                    We track <strong>Rewatch Counts</strong> and let you know how obsessed you are.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3. Analytics & Reports -->
+    <section class="mb-16">
+        <h2 class="text-2xl font-bold mb-6 flex items-center gap-2"><i data-lucide="bar-chart-2"></i> Analytics</h2>
+        <div class="space-y-4">
+            <div class="glass p-6 rounded-2xl">
+                <h3 class="font-bold text-lg text-indigo-400">Wrapped 2026</h3>
+                <p class="text-slate-400 text-sm">There's a yearly wrapped report available to view your stats.</p>
+            </div>
+            <div class="glass p-6 rounded-2xl">
+                <h3 class="font-bold text-lg text-indigo-400">Rankings (Global & City)</h3>
+                <p class="text-slate-400 text-sm">Compete on the Leaderboard! Set your City and Country in your profile
+                    to see how you rank locally vs. globally.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 4. Gamification -->
+    <section class="mb-16">
+        <h2 class="text-2xl font-bold mb-6 flex items-center gap-2"><i data-lucide="trophy"></i> Level Up</h2>
+        <div class="glass p-8 rounded-2xl">
+            <p class="text-slate-400 mb-6">Earn XP by watching content. <strong>Movies: 100 XP</strong>,
+                <strong>Episodes: 25 XP</strong>, <strong>Reviews: 50 XP</strong>. Unlock titles from
+                <strong>Novice</strong> to <strong>Cinephile God</strong>.
+            </p>
+            <div class="overflow-x-auto mt-4">
+                <table class="w-full text-sm text-left text-slate-400">
+                    <thead class="text-xs uppercase bg-white/5 text-slate-300">
+                        <tr>
+                            <th class="px-4 py-3 rounded-tl-lg">Rank Title</th>
+                            <th class="px-4 py-3">Levels</th>
+                            <th class="px-4 py-3 rounded-tr-lg">XP Required</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-white/5">
+                        <tr class="hover:bg-white/5 transition-colors">
+                            <td class="px-4 py-2 font-bold text-white">Novice</td>
+                            <td class="px-4 py-2">1-3</td>
+                            <td class="px-4 py-2">0 XP</td>
+                        </tr>
+                        <tr class="hover:bg-white/5 transition-colors">
+                            <td class="px-4 py-2 font-bold text-white">Casual Viewer</td>
+                            <td class="px-4 py-2">4-6</td>
+                            <td class="px-4 py-2">3,600 XP</td>
+                        </tr>
+                        <tr class="hover:bg-white/5 transition-colors">
+                            <td class="px-4 py-2 font-bold text-white">Popcorn Eater</td>
+                            <td class="px-4 py-2">7-9</td>
+                            <td class="px-4 py-2">14,400 XP</td>
+                        </tr>
+                        <tr class="hover:bg-white/5 transition-colors">
+                            <td class="px-4 py-2 font-bold text-white">Weekend Watcher</td>
+                            <td class="px-4 py-2">10-14</td>
+                            <td class="px-4 py-2">32,400 XP</td>
+                        </tr>
+                        <tr class="hover:bg-white/5 transition-colors">
+                            <td class="px-4 py-2 font-bold text-white">Series Binger</td>
+                            <td class="px-4 py-2">15-19</td>
+                            <td class="px-4 py-2">78,400 XP</td>
+                        </tr>
+                        <tr class="hover:bg-white/5 transition-colors">
+                            <td class="px-4 py-2 font-bold text-white">Film Student</td>
+                            <td class="px-4 py-2">20-29</td>
+                            <td class="px-4 py-2">144,400 XP</td>
+                        </tr>
+                        <tr class="hover:bg-white/5 transition-colors">
+                            <td class="px-4 py-2 font-bold text-white">Critic</td>
+                            <td class="px-4 py-2">30-39</td>
+                            <td class="px-4 py-2">336,400 XP</td>
+                        </tr>
+                        <tr class="hover:bg-white/5 transition-colors">
+                            <td class="px-4 py-2 font-bold text-white">Taste Maker</td>
+                            <td class="px-4 py-2">40-49</td>
+                            <td class="px-4 py-2">608,400 XP</td>
+                        </tr>
+                        <tr class="hover:bg-white/5 transition-colors">
+                            <td class="px-4 py-2 font-bold text-white">Screenwriter</td>
+                            <td class="px-4 py-2">50-59</td>
+                            <td class="px-4 py-2">960,400 XP</td>
+                        </tr>
+                        <tr class="hover:bg-white/5 transition-colors">
+                            <td class="px-4 py-2 font-bold text-white">Director</td>
+                            <td class="px-4 py-2">60-69</td>
+                            <td class="px-4 py-2">1.4M XP</td>
+                        </tr>
+                        <tr class="hover:bg-white/5 transition-colors">
+                            <td class="px-4 py-2 font-bold text-white">Producer</td>
+                            <td class="px-4 py-2">70-79</td>
+                            <td class="px-4 py-2">1.9M XP</td>
+                        </tr>
+                        <tr class="hover:bg-white/5 transition-colors">
+                            <td class="px-4 py-2 font-bold text-white">Auteur</td>
+                            <td class="px-4 py-2">80-89</td>
+                            <td class="px-4 py-2">2.5M XP</td>
+                        </tr>
+                        <tr class="hover:bg-white/5 transition-colors">
+                            <td class="px-4 py-2 font-bold text-white">Visionary</td>
+                            <td class="px-4 py-2">90-99</td>
+                            <td class="px-4 py-2">3.2M XP</td>
+                        </tr>
+                        <tr class="hover:bg-white/5 transition-colors">
+                            <td class="px-4 py-2 font-bold text-emerald-400">Legend</td>
+                            <td class="px-4 py-2">100-149</td>
+                            <td class="px-4 py-2">3.9M XP</td>
+                        </tr>
+                        <tr class="bg-gradient-to-r from-indigo-500/20 to-purple-500/20">
+                            <td class="px-4 py-2 font-black text-indigo-300 uppercase tracking-widest"><i
+                                    data-lucide="crown" class="w-4 h-4 inline mb-1 mr-1"></i> Cinephile God</td>
+                            <td class="px-4 py-2">150+</td>
+                            <td class="px-4 py-2">8.9M XP</td>
+                        </tr>
+                        <tr class="bg-gradient-to-r from-red-500/20 to-orange-500/20">
+                            <td class="px-4 py-2 font-black text-red-300 uppercase tracking-widest"><i
+                                    data-lucide="flame" class="w-4 h-4 inline mb-1 mr-1"></i> Immortal</td>
+                            <td class="px-4 py-2">Any</td>
+                            <td class="px-4 py-2">1000+ Watched Items</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- 5. Social -->
+    <section class="mb-16">
+        <h2 class="text-2xl font-bold mb-6 flex items-center gap-2"><i data-lucide="users"></i> Social & Share</h2>
+        <div class="space-y-6">
+            <div class="glass p-6 rounded-2xl flex gap-4">
+                <div class="bg-pink-500/20 p-3 rounded-xl h-fit"><i data-lucide="heart" class="text-pink-500"></i></div>
+                <div>
+                    <h3 class="font-bold text-lg text-white">Cine-Match & Recommendations</h3>
+                    <p class="text-slate-400 text-sm mt-1">See compatibility scores with friends. Send them direct
+                        recommendations via the Inbox (Envelope icon).</p>
+                </div>
+            </div>
+
+            <div class="glass p-6 rounded-2xl flex gap-4">
+                <div class="bg-purple-500/20 p-3 rounded-xl h-fit"><i data-lucide="calendar"
+                        class="text-purple-500"></i></div>
+                <div>
+                    <div>
+                        <h3 class="font-bold text-lg text-white">Watch Parties (Live)</h3>
+                        <p class="text-slate-400 text-sm mt-1">Host live events. When the party starts, click
+                            <strong>Enter</strong> to join the <strong>Live Party Room</strong>. Chat with friends in
+                            real-time while you watch.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="glass p-6 rounded-2xl flex gap-4">
+                    <div class="bg-indigo-500/20 p-3 rounded-xl h-fit"><i data-lucide="message-circle"
+                            class="text-indigo-500"></i></div>
+                    <div>
+                        <h3 class="font-bold text-lg text-white">Direct Messages</h3>
+                        <p class="text-slate-400 text-sm mt-1">Send private messages to friends via their profile. Check
+                            your <strong>Inbox</strong> to reply. Perfect for trash-talking movie taste.</p>
+                    </div>
+                </div>
+            </div>
+    </section>
+
+    <!-- 6. Advanced Features -->
+    <section class="mb-16">
+        <h2 class="text-2xl font-bold mb-6 flex items-center gap-2"><i data-lucide="settings"></i> Advanced Functions
+        </h2>
+        <div class="space-y-6">
+            <div class="glass p-6 rounded-2xl">
+                <h3 class="font-bold text-lg text-red-400 flex items-center gap-2"><i data-lucide="ban"
+                        class="w-4 h-4"></i> Quick Block</h3>
+                <p class="text-slate-400 text-sm mt-2">Hate a movie? Block it instantly! Click the big <strong>+
+                        (Add/Block)</strong> button → Search for the item → Click the <strong>🚫 Block</strong> icon
+                    next to any result. Blocked items won't appear in recommendations.</p>
+                <p class="text-slate-400 text-sm mt-2"><strong>Unblock:</strong> Go to the "Blocked" tab, find the item,
+                    and click the green <strong>Unblock</strong> button.</p>
+            </div>
+
+            <div class="glass p-6 rounded-2xl">
+                <h3 class="font-bold text-lg text-blue-400 flex items-center gap-2"><i data-lucide="tv"
+                        class="w-4 h-4"></i> Where to Watch</h3>
+                <p class="text-slate-400 text-sm mt-2">See streaming availability badges on movie/show cards! Shows the
+                    top 3 platforms (Netflix, Disney+, etc.) available in your country.</p>
+                <p class="text-slate-400 text-sm mt-2"><strong>Tip:</strong> Set your country in <strong>Edit
+                        Profile</strong> for accurate results.</p>
+            </div>
+
+            <div class="glass p-6 rounded-2xl">
+                <h3 class="font-bold text-lg text-purple-400 flex items-center gap-2"><i data-lucide="mic"
+                        class="w-4 h-4"></i> Voice Reactions</h3>
+                <p class="text-slate-400 text-sm mt-2">Comment on friend activity using your voice! Click the <strong>🎤
+                        microphone</strong> button next to any comment box, speak your reaction, and send.</p>
+                <p class="text-slate-400 text-sm mt-2"><strong>Note:</strong> Works in Chrome and Safari only (Web
+                    Speech API).</p>
+            </div>
+
+            <div class="glass p-6 rounded-2xl">
+                <h3 class="font-bold text-lg text-green-400 flex items-center gap-2"><i data-lucide="users"
+                        class="w-4 h-4"></i> Playlist Collaboration</h3>
+                <p class="text-slate-400 text-sm mt-2">Share your playlists with friends! Open any playlist → Click
+                    <strong>Collaborate</strong> → Search for friends → Add them. Collaborators can add/remove items but
+                    can't delete the playlist.
+                </p>
+                <p class="text-slate-400 text-sm mt-2"><strong>Public Playlists:</strong> All playlists are visible on
+                    your profile.</p>
+            </div>
+
+            <div class="glass p-6 rounded-2xl">
+                <h3 class="font-bold text-lg text-pink-400 flex items-center gap-2"><i data-lucide="party-popper"
+                        class="w-4 h-4"></i> Watch Party Management</h3>
+                <p class="text-slate-400 text-sm mt-2">Host watch parties and cancel them if plans change. As the host,
+                    you'll see a <strong>Cancel Party</strong> button (red text) below your party in the list.</p>
+                <p class="text-slate-400 text-sm mt-2"><strong>Auto-cleanup:</strong> Past parties automatically
+                    disappear from the list.</p>
+            </div>
+
+            <div class="glass p-6 rounded-2xl">
+                <h3 class="font-bold text-lg text-yellow-400 flex items-center gap-2"><i data-lucide="bell"
+                        class="w-4 h-4"></i> Notifications & Inbox Badge</h3>
+                <p class="text-slate-400 text-sm mt-2">Get notified when friends comment on your posts or send you DMs.
+                    The <strong>Inbox</strong> button shows a red badge with your unread message count.</p>
+                every 30 seconds.</p>
+            </div>
+
+            <div class="glass p-6 rounded-2xl">
+                <h3 class="font-bold text-lg text-blue-400 flex items-center gap-2"><i data-lucide="share-2"
+                        class="w-4 h-4"></i> Public Sharing & Exports</h3>
+                <p class="text-slate-400 text-sm mt-2">Share your taste with the world! We've made it easier than ever:
+                </p>
+                <ul class="list-disc list-inside text-slate-400 text-sm mt-2 space-y-1">
+                    <li><strong>Share Playlists:</strong> Open any playlist → Click <strong>Share</strong>. You get a
+                        public link (e.g., <code>/playlist/123</code>) that anyone can view, even without an account.
+                    </li>
+                    <li><strong>Share Exports:</strong> Go to Profile → Data Management. Click <strong>Share
+                            Page</strong> to generate a beautiful, mobile-friendly webpage of your specific list
+                        (Watchlist or History).</li>
+                    <li><strong>Badges:</strong> Your public pages proudly display your <strong>Rank Badge</strong>
+                        (e.g., Lvl 5 Novice) so everyone knows your cinephile status.</li>
+                </ul>
+            </div>
+
+            <div class="glass p-6 rounded-2xl">
+                <h3 class="font-bold text-lg text-orange-400 flex items-center gap-2"><i data-lucide="calendar-days"
+                        class="w-4 h-4"></i> Seasonal Features: Wrapped vs. Rankings</h3>
+                <p class="text-slate-400 text-sm mt-2">The navigation bar adapts to the season:</p>
+                <ul class="list-disc list-inside text-slate-400 text-sm mt-2 space-y-1">
+                    <li><strong>Jan 1 - Nov 28:</strong> You'll see the <strong>🏆 Rankings</strong> button to track the
+                        global leaderboard.</li>
+                    <li><strong>Nov 29 - Dec 31:</strong> Rankings are hidden to make room for <strong>🎁 2026
+                            Wrapped</strong>, your personalized year-in-review.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <footer class="text-center text-slate-600 text-sm py-8 border-t border-white/10">
+        Watched V2 &copy; 2026
+    </footer>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>
