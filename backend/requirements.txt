@@ -11,3 +11,4 @@ google-auth-oauthlib
 python-multipart
 requests
 psycopg2-binary
+jinja2
