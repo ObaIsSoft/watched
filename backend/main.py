@@ -2320,6 +2320,7 @@ def get_inbox(db: Session = Depends(get_db), current_user: User = Depends(get_cu
             "type": m.type,
             "content_id": m.content_id,
             "message": m.message,
+            "read": m.read,  # Include read status
             "created_at": m.created_at.isoformat()
         })
     return results
@@ -2376,6 +2377,16 @@ def process_message(msg_id: int, action: str = "dismiss", db: Session = Depends(
     db.delete(msg)
     db.commit()
     return {"status": "processed"}
+
+@app.post("/api/inbox/mark-read")
+def mark_inbox_read(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Mark all inbox messages as read for the current user"""
+    db.query(InboxMessage).filter(
+        InboxMessage.receiver_id == current_user.id,
+        InboxMessage.read == False
+    ).update({"read": True})
+    db.commit()
+    return {"status": "success"}
 
 # --- WATCH PARTIES ---
 class WatchPartyCreate(BaseModel):
