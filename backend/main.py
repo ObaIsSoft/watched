@@ -610,6 +610,7 @@ class ProfileUpdate(BaseModel):
     name: Optional[str] = None
     city: Optional[str] = None
     country: Optional[str] = None
+    is_public: Optional[bool] = None
 
 def get_db():
     db = SessionLocal()
@@ -728,6 +729,10 @@ def update_profile(request: ProfileUpdate, db: Session = Depends(get_db), curren
         current_user.city = request.city
     if request.country is not None:
         current_user.country = request.country
+    
+    # Update Privacy Setting
+    if request.is_public is not None:
+        current_user.is_public = request.is_public
         
     db.commit()
     return {
@@ -736,7 +741,8 @@ def update_profile(request: ProfileUpdate, db: Session = Depends(get_db), curren
         "picture": current_user.picture, 
         "name": current_user.name,
         "city": current_user.city,
-        "country": current_user.country
+        "country": current_user.country,
+        "is_public": current_user.is_public
     }
 
 # --- EXPORT ---
@@ -901,6 +907,7 @@ def read_users_me(current_user: User = Depends(get_current_user)):
         "xp": current_user.xp,
         "level": current_user.level,
         "current_streak": current_user.current_streak,
+        "is_public": current_user.is_public,
         "badges": badges
     }
 
@@ -963,7 +970,7 @@ def read_public_profile(user_id: int, db: Session = Depends(get_db), current_use
 # --- LEADERBOARD ---
 @app.get("/api/leaderboard")
 def get_leaderboard(scope: str = "global", genre: str = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # Scope check
+    # Scope check - Only show public profiles in global/city/country rankings
     query = db.query(User).filter(User.is_public == True)
     
     if scope == 'friends':
@@ -1021,6 +1028,23 @@ def get_leaderboard(scope: str = "global", genre: str = None, db: Session = Depe
     
     # Sort desc
     return sorted(leaderboard, key=lambda x: x['hours'], reverse=True)[:100]
+
+# --- ONE-TIME MIGRATION ENDPOINT ---
+@app.post("/api/admin/migrate-privacy")
+def migrate_user_privacy(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """One-time endpoint to set is_public=True for all users. Call this once after deploying the privacy toggle feature."""
+    try:
+        # Update all users who don't have is_public set properly
+        users = db.query(User).filter(or_(User.is_public.is_(None), User.is_public == False)).all()
+        count = 0
+        for user in users:
+            user.is_public = True
+            count += 1
+        db.commit()
+        return {"status": "success", "updated": count, "message": f"Set {count} users to public"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 
