@@ -1,0 +1,38 @@
+# Environment variables
+.env
+backend/.env
+
+# Databases
+*.db
+backend/*.db
+backend/watched_history.db
+backend/watched.db
+backend/watchlist.db
+backend/watched_history_backup.db
+
+# Logs
+*.log
+backend/server.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Archives
+*.zip
+*.tar.gz
+
+# Frontend dependencies
+node_modules/
+.next/
+out/
+build/
+dist/

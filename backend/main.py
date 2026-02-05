@@ -21,6 +21,10 @@ print("Logger initialized")
 from jose import jwt, JWTError
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
+from dotenv import load_dotenv
+
+# Load .env file if it exists
+load_dotenv()
 
 # --- LOGGING SETUP ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -31,10 +35,10 @@ logging.basicConfig(
 )
 
 # --- CONFIGURATION ---
-TMDB_API_KEY = os.environ.get("TMDB_API_KEY", "331904c8f8fb8f3fbe3e59cf24566a89")
-SECRET_KEY = os.environ.get("SECRET_KEY", "my_super_secret_key_change_me_in_prod")
+TMDB_API_KEY = os.environ.get("TMDB_API_KEY")
+SECRET_KEY = os.environ.get("SECRET_KEY", "dev_secret_key_only")
 ALGORITHM = "HS256"
-GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "725965614246-s6r1sh4m1i9mocm8pa5ag1e67asd2ev3.apps.googleusercontent.com")
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
  
 
 # --- DATABASE SETUP (SQLite) ---
