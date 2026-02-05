@@ -50,6 +50,12 @@ DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{os.path.join(BASE_DIR
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
+# Fix for Supabase: Remove pgbouncer param which causes psycopg2 to crash
+if "pgbouncer=true" in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("pgbouncer=true", "")
+    # Clean up trailing ? or &
+    DATABASE_URL = DATABASE_URL.rstrip("?").rstrip("&").replace("?&", "?").replace("&&", "&")
+
 connect_args = {}
 if "sqlite" in DATABASE_URL:
     connect_args = {"check_same_thread": False}
