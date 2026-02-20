@@ -1458,11 +1458,15 @@ def update_progress(id: int, request: ProgressRequest, db: Session = Depends(get
 
 @app.delete("/api/entry/{id}")
 def delete_entry(id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    entry = db.query(WatchHistory).filter(WatchHistory.tmdb_id == id, WatchHistory.user_id == current_user.id).first()
-    if not entry:
+    # Delete all instances of this item for this user (robustness)
+    deleted_count = db.query(WatchHistory).filter(
+        WatchHistory.tmdb_id == id, 
+        WatchHistory.user_id == current_user.id
+    ).delete()
+    
+    if deleted_count == 0:
         raise HTTPException(status_code=404, detail="Entry not found")
     
-    db.delete(entry)
     db.commit()
     
     # Sync XP

@@ -1647,46 +1647,82 @@
         }
 
         function renderCard(item, isWatchlist = false, isBlockedView = false) {
-            const div = document.createElement('div');
-            // ... (rest is same)
+            const poster = item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : 'https://via.placeholder.com/500x750?text=No+Image';
+            const rating = item.rating || 'NR';
+            const typeLabel = item.media_type === 'movie' ? 'Movie' : 'TV';
+            const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(item.title + ' ' + (item.media_type === 'tv' ? 'tv series' : 'movie'))}`;
 
-            // ... (inside logic)
-            // FORCE UNBLOCK BUTTON priority
-            if (isBlockedView || item.status === 'blocked') {
-                btnAction = `<button onclick="unblockItem(${item.tmdb_id})" class="mt-3 w-full py-2 bg-green-600 hover:bg-green-500 rounded-lg text-sm font-medium transition-colors font-bold uppercase tracking-wide">Unblock</button>`;
-            } else if (isWatchlist) {
-                btnAction = `<button onclick="openMarkWatchedModal(${item.tmdb_id})" class="mt-3 w-full py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition-colors">Mark Watched</button>`;
-            } else {
-                btnAction = `<div class="mt-3 flex justify-between items-center text-xs text-slate-500">
-                     <span>Watched on ${dateStr}</span>
-                     ${item.rating ? '' : `<button onclick="openRateModal(${item.tmdb_id}, '${item.title.replace(/'/g, "\\'")}')" class="text-indigo-400 hover:text-indigo-300">Rate</button>`}
-                   </div>`;
+            // Generate Genre Pills (Top 2)
+            let genreHTML = '';
+            if (item.genres) {
+                let gList = item.genres;
+                if (typeof gList === 'string') {
+                    if (gList.startsWith('[')) {
+                        try { gList = JSON.parse(gList); } catch (e) { gList = []; }
+                    } else {
+                        gList = gList.split(',').map(s => s.trim());
+                    }
+                }
+                if (Array.isArray(gList)) {
+                    genreHTML = gList.slice(0, 2).map(g =>
+                        `<span class="text-[9px] font-bold bg-black/50 px-2 py-0.5 rounded backdrop-blur-sm border border-white/10 text-slate-300">
+                            ${typeof g === 'object' ? g.name : g}
+                          </span>`
+                    ).join('');
+                }
             }
 
-            div.innerHTML = `
-                <div class="relative aspect-[2/3] mb-3 overflow-hidden rounded-lg group/poster cursor-pointer">
-                    <a href="${googleUrl}" target="_blank" rel="noopener noreferrer">
-                        <img src="${posterUrl}" class="object-cover w-full h-full transform group-hover/poster:scale-105 transition-transform duration-500" alt="${item.title}">
-                    </a>
-                    <div class="absolute top-2 right-2 bg-black/60 px-2 py-1 rounded text-xs backdrop-blur-sm self-start pointer-events-none">${item.year || 'N/A'}</div>
-                    ${ratingHtml}
-                    <button onclick="event.preventDefault(); deleteEntry(${item.tmdb_id})" class="absolute top-2 left-2 bg-red-500/80 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm z-20" title="Delete">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            // Logic for main action button
+            let btnAction = '';
+            if (isBlockedView || item.status === 'blocked') {
+                btnAction = `<button onclick="unblockItem(${item.tmdb_id})" class="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded-lg text-xs font-bold transition-colors uppercase tracking-wide">Unblock</button>`;
+            } else {
+                btnAction = `
+                    <button onclick="openAddToPlaylistModal(${item.tmdb_id}, '${item.title.replace(/'/g, "\\'")}', '${item.media_type}', '${item.poster_path || ''}')" class="flex-1 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1">
+                        <i data-lucide="folder-plus" class="w-3 h-3"></i> Add
                     </button>
+                    ${isWatchlist ?
+                        `<button onclick="openMarkWatchedModal(${item.tmdb_id}, '${item.title.replace(/'/g, "&apos;")}', '${item.media_type}')" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2 rounded-lg text-xs font-bold transition-colors">Watched</button>` :
+                        `<button onclick="submitRewatch(${item.tmdb_id}, '${item.title.replace(/'/g, "&apos;")}')" class="flex-1 bg-white/10 hover:bg-white/20 text-white py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> Rewatch</button>`
+                    }
+                `;
+            }
+
+            return `
+            <div class="glass rounded-xl overflow-hidden relative group card-hover animate-in">
+                <div class="relative aspect-[2/3]">
+                    <a href="${googleUrl}" target="_blank" rel="noopener noreferrer" class="block w-full h-full cursor-pointer">
+                        <img src="${poster}" alt="${item.title}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                    </a>
+                    
+                    <!-- Delete Button Overlay (always visible on small screens, hover on large) -->
+                    <button onclick="event.preventDefault(); deleteEntry(${item.tmdb_id})" class="absolute top-2 left-2 bg-red-500/80 hover:bg-red-600 text-white p-2 rounded-full opacity-100 lg:opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm z-30 shadow-lg" title="Delete Permanentally">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+
+                    <div class="absolute top-2 right-2 bg-black/60 px-2 py-1 rounded text-[10px] backdrop-blur-sm font-bold border border-white/10 text-white">${item.year || 'N/A'}</div>
+
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+                        <div class="flex gap-2 mb-3">
+                            ${btnAction}
+                        </div>
+                        ${!isWatchlist && item.media_type === 'tv' ?
+                    `<button onclick="openProgressModal(${item.tmdb_id}, '${item.title.replace(/'/g, "&apos;")}', '${item.seasons_watched || ''}', ${item.episode_progress || 0}, '${item.watched_episodes ? item.watched_episodes.replace(/'/g, "\\'") : "[]"}')" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded-lg text-xs font-bold transition-colors border border-slate-600">Update Progress</button>` : ''
+                }
+                    </div>
                 </div>
-                <div class="flex-1">
-                    <h3 class="font-medium text-white leading-tight mb-1 truncate" title="${item.title}">${item.title}</h3>
-                    <p class="text-xs text-slate-400 capitalize">
-                        ${item.media_type || 'movie'} • 
-                        ${item.media_type === 'tv' ? (item.total_episodes + ' eps') : (item.runtime + 'm')}
-                    </p>
-                    ${progressHtml}
-                    ${renderWatchProviders(item)}
+                <div class="p-4">
+                    <div class="flex justify-between items-start mb-1">
+                        <h3 class="font-bold text-white text-sm truncate pr-2" title="${item.title}">${item.title}</h3>
+                        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">${typeLabel}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-yellow-400 text-xs">★ ${rating}</span>
+                        <div class="flex gap-1">${genreHTML}</div>
+                    </div>
                 </div>
-                ${btnAction}
+            </div>
             `;
-            div.classList.add('animate-swing');
-            return div.outerHTML;
         }
         function renderRecCard(item) {
             const posterUrl = item.poster_path
@@ -3378,71 +3414,6 @@
             }
         }
 
-        function renderCard(item, isWatchlist, isBlockedView = false) {
-            const poster = item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : 'https://via.placeholder.com/500x750?text=No+Image';
-            const rating = item.rating || 'NR';
-            const typeLabel = item.media_type === 'movie' ? 'Movie' : 'TV';
-            const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(item.title + ' ' + (item.media_type === 'tv' ? 'tv series' : 'movie'))}`;
-
-            // Generate Genre Pills (Top 2)
-            let genreHTML = '';
-            if (item.genres) {
-                let gList = item.genres;
-                // Parse if string
-                if (typeof gList === 'string') {
-                    // Try parsing as JSON first, fallback to comma-separated
-                    if (gList.startsWith('[')) {
-                        try { gList = JSON.parse(gList); } catch (e) { gList = []; }
-                    } else {
-                        gList = gList.split(',').map(s => s.trim());
-                    }
-                }
-                if (Array.isArray(gList)) {
-                    genreHTML = gList.slice(0, 2).map(g =>
-                        `<span class="text-[9px] font-bold bg-black/50 px-2 py-0.5 rounded backdrop-blur-sm border border-white/10 text-slate-300">
-                            ${typeof g === 'object' ? g.name : g}
-                          </span>`
-                    ).join('');
-                }
-            }
-
-            return `
-            <div class="glass rounded-xl overflow-hidden relative group card-hover animate-in">
-                <div class="relative aspect-[2/3]">
-                    <a href="${googleUrl}" target="_blank" rel="noopener noreferrer" class="block w-full h-full cursor-pointer">
-                        <img src="${poster}" alt="${item.title}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
-                    </a>
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-                        <div class="flex gap-2 mb-3">
-                            ${isBlockedView || item.status === 'blocked' ?
-                    `<button onclick="unblockItem(${item.tmdb_id})" class="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded-lg text-xs font-bold transition-colors uppercase tracking-wide">Unblock</button>` :
-                    `<button onclick="openAddToPlaylistModal(${item.tmdb_id}, '${item.title.replace(/'/g, "\\'")}', '${item.media_type}', '${item.poster_path || ''}')" class="flex-1 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1">
-                                    <i data-lucide="folder-plus" class="w-3 h-3"></i> Add
-                                </button>
-                                ${isWatchlist ?
-                        `<button onclick="openMarkWatchedModal(${item.tmdb_id}, '${item.title.replace(/'/g, "&apos;")}', '${item.media_type}')" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2 rounded-lg text-xs font-bold transition-colors">Watched</button>` :
-                        `<button onclick="submitRewatch(${item.tmdb_id}, '${item.title.replace(/'/g, "&apos;")}')" class="flex-1 bg-white/10 hover:bg-white/20 text-white py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> Rewatch</button>`
-                    }`
-                }
-                        </div>
-                         ${!isWatchlist && item.media_type === 'tv' ?
-                    `<button onclick="openProgressModal(${item.tmdb_id}, '${item.title.replace(/'/g, "&apos;")}', '${item.seasons_watched || ''}', ${item.episode_progress || 0}, '${item.watched_episodes ? item.watched_episodes.replace(/'/g, "\\'") : "[]"}')" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded-lg text-xs font-bold transition-colors border border-slate-600">Update Progress</button>` : ''
-                }
-                    </div>
-                </div>
-                <div class="p-4 relative">
-                    <div class="flex justify-between items-start mb-1">
-                        <h3 class="font-bold text-white text-sm truncate pr-2" title="${item.title}">${item.title}</h3>
-                        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">${typeLabel}</span>
-                    </div>
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="text-yellow-400 text-xs">★ ${rating}</span>
-                        <div class="flex gap-1">${genreHTML}</div>
-                    </div>
-                </div>
-            </div>
-            `;
-        }
 
         // --- REWATCH / BLOCK LOGIC ---
         async function submitRewatch(tmdbId, title) {
