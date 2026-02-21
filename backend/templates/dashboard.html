@@ -5138,15 +5138,27 @@
 
         async function initTasteMakerWizard() {
             const wizardEl = document.getElementById('onboarding-wizard');
-            if (wizardEl) wizardEl.style.display = 'flex';
+            if (!wizardEl) {
+                // If wizard UI doesn't exist in V3 Layout, silently complete
+                authFetch('/api/onboarding/complete', { method: 'POST' }).catch(console.error);
+                completeWizard();
+                return;
+            }
+
+            wizardEl.style.display = 'flex';
 
             const mainAppContent = document.getElementById('main-app-content');
             if (mainAppContent) mainAppContent.classList.add('blur-sm', 'pointer-events-none');
 
             // Fetch popular movies for Step 1
             try {
-                const res = await fetch(`https://api.themoviedb.org/3/movie/popular?api_key=42898864b97d8bba004be51c6cacc17f&language=en-US&page=1`);
+                // Fixed API Key to match backend ENV
+                const res = await fetch(`https://api.themoviedb.org/3/movie/popular?api_key=331904c8f8fb8f3fbe3e59cf24566a89&language=en-US&page=1`);
                 const data = await res.json();
+
+                if (!data || !data.results) {
+                    throw new Error("Invalid or Unauthorized TMDB response for onboarding movies");
+                }
 
                 let html = '';
                 data.results.slice(0, 15).forEach((movie, i) => {
@@ -5160,7 +5172,8 @@
                         </div>
                     `;
                 });
-                document.getElementById('wizard-movies-grid').innerHTML = html;
+                const grid = document.getElementById('wizard-movies-grid');
+                if (grid) grid.innerHTML = html;
                 if (window.lucide) lucide.createIcons();
 
             } catch (e) {
@@ -5272,11 +5285,18 @@
 
         function completeWizard() {
             const wizard = document.getElementById('onboarding-wizard');
-            wizard.style.opacity = '0';
+            if (wizard) wizard.style.opacity = '0';
+
             setTimeout(() => {
-                wizard.style.display = 'none';
-                document.getElementById('main-app-content').classList.remove('blur-sm', 'pointer-events-none');
+                if (wizard) wizard.style.display = 'none';
+
+                const mainAppContent = document.getElementById('main-app-content');
+                if (mainAppContent) {
+                    mainAppContent.classList.remove('blur-sm', 'pointer-events-none');
+                    mainAppContent.style.display = 'block';
+                }
                 init(); // Reload UI
+
 
                 // Show tooltips for new users
                 setTimeout(showZeroStateTooltips, 2000);
