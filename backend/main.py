@@ -81,6 +81,9 @@ class User(Base):
     current_streak = Column(Integer, default=0)
     last_active_date = Column(DateTime, nullable=True) # For streak calc
 
+    # V3 Onboarding
+    has_completed_onboarding = Column(Boolean, default=False)
+
     history = relationship("WatchHistory", back_populates="user")
     
     # Relationships for Social
@@ -161,6 +164,7 @@ class PlaylistItem(Base):
     media_type = Column(String) # 'movie' or 'tv'
     title = Column(String) # Cache title for easier display
     poster_path = Column(String, nullable=True) # Cache thumbnail
+    position = Column(Integer, default=0) # Drag-and-drop sort order
     added_at = Column(DateTime, default=datetime.utcnow)
     
     playlist = relationship("Playlist", back_populates="items")
@@ -431,6 +435,9 @@ def run_migrations():
              if 'poster_path' not in pi_cols:
                  logging.info("Migrating DB: Adding poster_path to playlist_items")
                  conn.execute(text("ALTER TABLE playlist_items ADD COLUMN poster_path VARCHAR"))
+             if 'position' not in pi_cols:
+                 logging.info("Migrating DB: Adding position to playlist_items")
+                 conn.execute(text("ALTER TABLE playlist_items ADD COLUMN position INTEGER DEFAULT 0"))
                   
         # Check Playlists for Collaborators
         if inspector.has_table("playlists"):
@@ -2086,27 +2093,145 @@ def get_sprint_report(db: Session = Depends(get_db), current_user: User = Depend
         "items_count": len(current_period)
     }
 
+# ==========================================
+# V3: PHASE 1 PREDICTIVE AI & SMART DISCOVERY
+# ==========================================
+
+class MoodRequest(BaseModel):
+    query: str
+
+@app.post("/api/ai/mood-search")
+async def mood_search(req: MoodRequest, current_user: User = Depends(get_current_user)):
+    query = req.query.lower()
+    
+    # Hybrid AI Mapping (Keyword Heuristics fallback to generic)
+    # Real LLM integration could be easily hooked in here by reading os.environ.get("GEMINI_API_KEY")
+    genre_map = {
+        "cry": [18, 10749], "sad": [18], "depressed": [35, 10751], # Give comedy if depressed
+        "laugh": [35], "funny": [35], "comedy": [35],
+        "scare": [27, 53], "horror": [27], "spooky": [27],
+        "think": [99, 878, 9648], "mind bending": [878, 9648],
+        "action": [28, 12], "excitement": [28], "fast": [28],
+        "love": [10749], "romance": [10749], "date": [10749, 35],
+        "family": [10751, 16], "kids": [16, 10751],
+        "feel good": [35, 10751, 10402],
+        "dark": [80, 53, 27], "gritty": [80, 53]
+    }
+    
+    selected_genres = set()
+    for kw, g_ids in genre_map.items():
+        if kw in query:
+            selected_genres.update(g_ids)
+            
+    if not selected_genres:
+        selected_genres = [28, 12, 35, 18, 878] # General Mix
+        
+    genre_str = "|".join(map(str, selected_genres))
+    
+    url = f"https://api.themoviedb.org/3/discover/movie"
+    params = {
+        "api_key": TMDB_API_KEY,
+        "with_genres": genre_str,
+        "sort_by": "popularity.desc",
+        "vote_count.gte": 100
+    }
+    
+    async with httpx.AsyncClient() as client:
+        res = await client.get(url, params=params)
+        if res.status_code == 200:
+            return res.json().get('results', [])[:15]
+        return []
+
+@app.get("/api/smart-suggestions/when-to-watch")
+async def get_when_to_watch(current_user: User = Depends(get_current_user)):
+    now = datetime.now()
+    hour = now.hour
+    is_weekend = now.weekday() >= 5
+    
+    params = {
+        "api_key": TMDB_API_KEY,
+        "sort_by": "popularity.desc",
+        "vote_count.gte": 200
+    }
+    
+    context_msg = ""
+    
+    if is_weekend and (hour > 19 or hour < 2):
+        params["with_genres"] = "28|878|12" # Action, SciFi, Adventure
+        params["with_runtime.gte"] = 120
+        context_msg = "It's weekend movie night! Settle in for a blockbuster."
+        url = "https://api.themoviedb.org/3/discover/movie"
+    elif not is_weekend and (hour > 20):
+        params["with_genres"] = "35|18" # Comedy, Drama
+        params["with_runtime.lte"] = 100
+        context_msg = "Late weeknight? These shorter picks won't keep you up."
+        url = "https://api.themoviedb.org/3/discover/movie"
+    elif hour < 12:
+        params["with_genres"] = "10751|16|35" 
+        context_msg = "Light morning watches to start the day right."
+        url = "https://api.themoviedb.org/3/discover/movie"
+    else:
+        params["with_genres"] = "53|9648|80" # Thriller, Mystery
+        context_msg = "Perfect gripping mid-day thrillers."
+        url = "https://api.themoviedb.org/3/discover/movie"
+        
+    async with httpx.AsyncClient() as client:
+        res = await client.get(url, params=params)
+        if res.status_code == 200:
+            results = res.json().get('results', [])[:6]
+            return {
+                "context": context_msg,
+                "results": results
+            }
+        return {"context": "Here's what popular right now.", "results": []}
+
+@app.get("/api/streaming-availability/{media_type}/{tmdb_id}")
+async def get_streaming_availability(media_type: str, tmdb_id: int):
+    if media_type not in ['movie', 'tv']:
+        return {}
+        
+    url = f"https://api.themoviedb.org/3/{media_type}/{tmdb_id}/watch/providers"
+    params = {"api_key": TMDB_API_KEY}
+    
+    async with httpx.AsyncClient() as client:
+        res = await client.get(url, params=params)
+        if res.status_code == 200:
+            data = res.json().get('results', {})
+            return data.get('US', {})
+        return {}
 @app.get("/api/recommendations")
 async def get_recommendations(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # --- STRATEGY: CONCEPT INTERSECTION ---
-    # Goal: "Because you watched X and Y"
+    # --- STRATEGY: CONCEPT INTERSECTION & GENRE WEIGHTING ---
+    # Goal: "Because you watched X and Y" + Personal Taste Bias
     
-    # 1. Gather Seeds (Broaden the net)
     full_history = db.query(WatchHistory).filter(WatchHistory.user_id == current_user.id).all()
     if not full_history:
         return await fetch_trending_content()
 
+    # Calculate User's Top Genres for Weighting
+    genre_counts = {}
     seen_lookup = set()
     for h in full_history:
-        # Robustly handle ID types and ensure media_type consistency
         try:
             tid = int(h.tmdb_id)
             mtype = (h.media_type or 'movie').lower()
             seen_lookup.add((tid, mtype))
+            
+            # Count genres
+            if getattr(h, 'genres', None):
+                genres = json.loads(h.genres)
+                for g in genres:
+                    if isinstance(g, dict) and 'id' in g:
+                        genre_counts[g['id']] = genre_counts.get(g['id'], 0) + 1
+                    elif isinstance(g, int):
+                        genre_counts[g] = genre_counts.get(g, 0) + 1
         except:
             pass
-    
-    # Priority Seeds:
+            
+    # Get top 3 genre IDs
+    top_genre_ids = {g[0] for g in sorted(genre_counts.items(), key=lambda x: x[1], reverse=True)[:3]}
+
+    # Priority Seeds
     sorted_by_date = sorted(full_history, key=lambda x: x.watched_at or x.added_at or datetime.min, reverse=True)
     favorites = sorted([h for h in full_history if h.status == 'watched'], key=lambda x: x.watched_at or datetime.min, reverse=True)
     
@@ -2120,7 +2245,6 @@ async def get_recommendations(db: Session = Depends(get_db), current_user: User 
         if remaining:
             seeds.extend(random.sample(remaining, min(2, len(remaining))))
             
-    # Remove duplicates from seeds list while preserving order
     unique_seeds = []
     seen_seed_ids = set()
     for s in seeds:
@@ -2128,33 +2252,26 @@ async def get_recommendations(db: Session = Depends(get_db), current_user: User 
             unique_seeds.append(s)
             seen_seed_ids.add(s.tmdb_id)
     
-    # 2. Fetch & Intersect
-    candidates = {} # tmdb_id -> { count, data, sources: [] }
+    candidates = {}
 
     async with httpx.AsyncClient() as client:
         for item in unique_seeds:
             try:
-                # Infer type for endpoint
                 seed_type = (item.media_type or 'movie').lower()
                 url = f"https://api.themoviedb.org/3/{seed_type}/{item.tmdb_id}/recommendations"
                 res = await client.get(url, params={"api_key": TMDB_API_KEY})
                 if res.status_code == 200:
                     results = res.json().get('results', [])
-                    # Filter poor quality
                     results = [r for r in results if r.get('vote_average', 0) >= 6.0] 
                     
-                    for rec in results[:10]: # Analyze top 10 from each seed
+                    for rec in results[:10]:
                         mid = rec['id']
-                        # Recs from a movie endpoint are movies, etc.
                         rec_type = seed_type 
                         
-                        # Strict Filter
                         if (mid, rec_type) in seen_lookup: continue
                         
                         if mid not in candidates:
-                            # Inject media_type if missing (TMDB specific endpoints don't always return it)
                             if 'media_type' not in rec: rec['media_type'] = rec_type
-                            
                             candidates[mid] = {
                                 'data': rec,
                                 'count': 0,
@@ -2181,58 +2298,51 @@ async def get_recommendations(db: Session = Depends(get_db), current_user: User 
                              candidates[t['id']] = {
                                 'data': t,
                                 'count': 1,
-                                'sources': ['Global Trends'], # Special source
-                                'score': t.get('vote_average', 0) * 1.1 # Boost slightly
+                                'sources': ['Global Trends'],
+                                'score': t.get('vote_average', 0) * 1.1 
                             }
             except Exception:
                 pass
 
-    # 3. Scoring & Formatting
     final_list = []
     
-    # Algorithm: Boost by Count
-    # Score = VoteAvg * (1 + (Count - 1) * 0.5)
-    # Count 1: 8.0 * 1 = 8.0
-    # Count 2: 8.0 * 1.5 = 12.0
-    # Count 3: 8.0 * 2.0 = 16.0
-    
     for mid, info in candidates.items():
+        base_score = info['score']
         count_boost = 1 + (info['count'] - 1) * 0.5
-        final_score = info['score'] * count_boost
         
-        # Format Reason
+        # New: Personalization Weight (Top Genres Match)
+        rec_item = info['data']
+        rec_genres = rec_item.get('genre_ids', [])
+        genre_overlap = len([g for g in rec_genres if g in top_genre_ids])
+        genre_boost = 1 + (genre_overlap * 0.2) # +20% per matching top genre
+        
+        final_score = base_score * count_boost * genre_boost
+        
         sources = info['sources']
         if 'Global Trends' in sources:
             reason = "Trending Globally"
         else:
-            # removing dupes from sources list
             sources = list(set(sources))
             if len(sources) == 1:
                 reason = f"Because you watched {sources[0]}"
             elif len(sources) == 2:
                 reason = f"Because you watched {sources[0]} and {sources[1]}"
-            elif len(sources) > 2:
-                reason = f"Because you watched {sources[0]}, {sources[1]} and others"
             else:
-                reason = "Recommended for you"
+                reason = f"Because you watched {sources[0]}, {sources[1]} and others"
                 
-        rec_item = info['data']
+        if genre_overlap >= 2 and info['count'] >= 2:
+             reason = f"Perfect match for your Top Genres"
+             
         rec_item['reason'] = reason
-        rec_item['match_score'] = final_score # Internal debug
+        rec_item['match_score'] = final_score
         
-        # Ensure media_type is set (Trending results have it, specific endpoints might not?)
-        # Recommendations endpoint usually does NOT include media_type field in results if fetched from /movie/{id}/recommendations (it's implicit).
-        # We must infer or check.
         if 'media_type' not in rec_item:
-             # Heuristic: if title exists, likely movie. name exists, likely tv.
              if 'title' in rec_item: rec_item['media_type'] = 'movie'
              elif 'name' in rec_item: rec_item['media_type'] = 'tv'
              
         final_list.append(rec_item)
 
-    # Sort by Final Score Descending
     final_list.sort(key=lambda x: x['match_score'], reverse=True)
-    
     return final_list[:18]
 
 async def fetch_trending_content():
@@ -2240,6 +2350,12 @@ async def fetch_trending_content():
         url = "https://api.themoviedb.org/3/trending/all/week"
         res = await client.get(url, params={"api_key": TMDB_API_KEY})
         return res.json().get('results', [])[:12] if res.status_code == 200 else []
+
+@app.post("/api/onboarding/complete")
+def complete_onboarding(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    current_user.has_completed_onboarding = True
+    db.commit()
+    return {"status": "success"}
 
 # --- SOCIAL API ---
 @app.post("/api/social/follow/{user_id}")
@@ -2663,6 +2779,9 @@ class PlaylistItemAdd(BaseModel):
     title: Optional[str] = None
     poster_path: Optional[str] = None
 
+class PlaylistReorder(BaseModel):
+    item_ids: list[int]
+
 @app.post("/api/playlists")
 def create_playlist(req: PlaylistCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     p = Playlist(
@@ -2724,9 +2843,23 @@ async def get_playlist_details(pid: int, db: Session = Depends(get_db), current_
             "title": i.title,
             "poster_path": i.poster_path,
             "media_type": i.media_type,
+            "position": i.position,
             "added_at": i.added_at.isoformat()
-        } for i in p.items]
+        } for i in sorted(p.items, key=lambda x: x.position)]
     }
+
+@app.put("/api/playlists/{pid}/reorder")
+def reorder_playlist(pid: int, req: PlaylistReorder, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    p = db.query(Playlist).filter(Playlist.id == pid, Playlist.user_id == current_user.id).first()
+    if not p: raise HTTPException(status_code=404, detail="Playlist not found or access denied")
+    
+    items_map = {item.id: item for item in p.items}
+    for idx, item_id in enumerate(req.item_ids):
+        if item_id in items_map:
+            items_map[item_id].position = idx
+            
+    db.commit()
+    return {"message": "Reordered successfully"}
 
 def get_rank_title(level, watched_count=0):
     if watched_count > 1000: return "🌌 Immortal"
