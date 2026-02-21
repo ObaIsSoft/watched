@@ -370,6 +370,14 @@ def run_migrations():
                  logging.info("Migrating DB: Adding bio column to users")
                  conn.execute(text("ALTER TABLE users ADD COLUMN bio VARCHAR DEFAULT ''"))
                  
+             if 'is_public' not in u_cols:
+                 logging.info("Migrating DB: Adding is_public column to users")
+                 conn.execute(text("ALTER TABLE users ADD COLUMN is_public BOOLEAN DEFAULT true"))
+
+             if 'has_completed_onboarding' not in u_cols:
+                 logging.info("Migrating DB: Adding has_completed_onboarding column to users")
+                 conn.execute(text("ALTER TABLE users ADD COLUMN has_completed_onboarding BOOLEAN DEFAULT false"))
+                 
              if 'city' not in u_cols:
                  logging.info("Migrating DB: Adding city column to users")
                  conn.execute(text("ALTER TABLE users ADD COLUMN city VARCHAR"))
@@ -2640,27 +2648,6 @@ def send_party_chat(party_id: int, req: sendPartyChatRequest, db: Session = Depe
     db.add(msg)
     db.commit()
     return {"status": "sent"}
-
-@app.get("/api/inbox")
-def get_inbox(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    msgs = db.query(InboxMessage).filter(InboxMessage.receiver_id == current_user.id).order_by(InboxMessage.created_at.desc()).all()
-    
-    # Enrich with sender info
-    result = []
-    for m in msgs:
-        sender = db.query(User).filter(User.id == m.sender_id).first()
-        result.append({
-            "id": m.id,
-            "sender_name": sender.name if sender else "Unknown",
-            "sender_pic": sender.picture if sender else "",
-            "message": m.message,
-            "type": m.type,
-            "content_id": m.content_id,
-            "read": m.read,
-            "created_at": m.created_at.isoformat()
-        })
-    return result
-
 
 # --- EXPORT ---
 @app.get("/api/export")

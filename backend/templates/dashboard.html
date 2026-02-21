@@ -2567,11 +2567,14 @@
 
         if (isWrappedSeason) {
             // Hide Rankings, show Wrapped
-            document.getElementById('tab-leaderboard').classList.add('hidden');
+            const leaderboardTab = document.getElementById('tab-leaderboard');
+            if (leaderboardTab) leaderboardTab.classList.add('hidden');
         } else {
             // Hide Wrapped, show Rankings
-            document.getElementById('tab-report').classList.add('hidden');
-            document.getElementById('wrapped-divider').classList.add('hidden');
+            const reportTab = document.getElementById('tab-report');
+            if (reportTab) reportTab.classList.add('hidden');
+            const divider = document.getElementById('wrapped-divider');
+            if (divider) divider.classList.add('hidden');
         }
 
         async function loadUpcoming() {
@@ -4993,7 +4996,7 @@
             <div class="w-full md:w-2/3 bg-black flex flex-col items-center justify-center relative group">
                 <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60">
                 </div>
-                <img src="/static/placeholder_movie.jpg"
+                <img src="https://via.placeholder.com/1200x800?text=Cinema+Sync"
                     class="absolute inset-0 w-full h-full object-cover opacity-30 group-hover:opacity-20 transition-opacity">
 
                 <div class="z-10 text-center">
@@ -5134,8 +5137,11 @@
         let wizardSelectedGenres = [];
 
         async function initTasteMakerWizard() {
-            document.getElementById('onboarding-wizard').style.display = 'flex';
-            document.getElementById('main-app-content').classList.add('blur-sm', 'pointer-events-none');
+            const wizardEl = document.getElementById('onboarding-wizard');
+            if (wizardEl) wizardEl.style.display = 'flex';
+
+            const mainAppContent = document.getElementById('main-app-content');
+            if (mainAppContent) mainAppContent.classList.add('blur-sm', 'pointer-events-none');
 
             // Fetch popular movies for Step 1
             try {
