@@ -1391,18 +1391,22 @@
         </div>
 
         <!-- DM Inbox Modal - Two Pane iMessage Style -->
-        <div id="inbox-modal" class="fixed inset-0 bg-black/80 hidden z-50 flex items-end md:items-center justify-center backdrop-blur-sm">
-            <div class="w-full md:max-w-3xl md:mx-4 md:rounded-3xl overflow-hidden flex flex-col md:flex-row bg-[#0d1117] border border-white/10 shadow-2xl" style="height: 88vh; max-height: 700px;">
-                
+        <div id="inbox-modal"
+            class="fixed inset-0 bg-black/80 hidden z-50 flex items-end md:items-center justify-center backdrop-blur-sm">
+            <div class="w-full md:max-w-3xl md:mx-4 md:rounded-3xl overflow-hidden flex flex-col md:flex-row bg-[#0d1117] border border-white/10 shadow-2xl"
+                style="height: 88vh; max-height: 700px;">
+
                 <!-- LEFT PANE: Thread List -->
-                <div id="dm-thread-list-pane" class="w-full md:w-72 flex-shrink-0 flex flex-col border-b md:border-b-0 md:border-r border-white/10 bg-[#0d1117]">
+                <div id="dm-thread-list-pane"
+                    class="w-full md:w-72 flex-shrink-0 flex flex-col border-b md:border-b-0 md:border-r border-white/10 bg-[#0d1117]">
                     <!-- Header -->
                     <div class="flex items-center justify-between p-5 border-b border-white/5">
                         <h2 class="text-lg font-black text-white flex items-center gap-2">
                             <i data-lucide="message-circle" class="w-5 h-5 text-indigo-400"></i>
                             Messages
                         </h2>
-                        <button onclick="document.getElementById('inbox-modal').classList.add('hidden'); document.body.style.overflow='auto';"
+                        <button
+                            onclick="document.getElementById('inbox-modal').classList.add('hidden'); document.body.style.overflow='auto';"
                             class="text-slate-500 hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-lg">
                             <i data-lucide="x" class="w-4 h-4"></i>
                         </button>
@@ -1410,18 +1414,23 @@
                     <!-- Thread List -->
                     <div id="dm-thread-list" class="flex-1 overflow-y-auto py-2">
                         <div class="flex items-center justify-center h-24 text-slate-600 text-sm">
-                            <div class="animate-spin w-4 h-4 border border-indigo-500 border-t-transparent rounded-full mr-2"></div>
+                            <div
+                                class="animate-spin w-4 h-4 border border-indigo-500 border-t-transparent rounded-full mr-2">
+                            </div>
                             Loading...
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- RIGHT PANE: Chat view (hidden on mobile until thread selected) -->
                 <div id="dm-chat-pane" class="flex-1 flex flex-col bg-[#0a0f1a] hidden md:flex">
                     <!-- Chat Header (shows selected user) -->
                     <div id="dm-chat-header" class="flex items-center gap-3 px-5 py-4 border-b border-white/5">
-                        <button onclick="closeDMThread()" class="md:hidden text-slate-500 hover:text-white mr-1"><i data-lucide="arrow-left" class="w-5 h-5"></i></button>
-                        <div id="dm-chat-avatar" class="w-9 h-9 rounded-full bg-indigo-500/30 flex items-center justify-center text-sm font-bold text-indigo-300 flex-shrink-0"></div>
+                        <button onclick="closeDMThread()" class="md:hidden text-slate-500 hover:text-white mr-1"><i
+                                data-lucide="arrow-left" class="w-5 h-5"></i></button>
+                        <div id="dm-chat-avatar"
+                            class="w-9 h-9 rounded-full bg-indigo-500/30 flex items-center justify-center text-sm font-bold text-indigo-300 flex-shrink-0">
+                        </div>
                         <div>
                             <div id="dm-chat-name" class="font-bold text-white text-sm">Select a conversation</div>
                             <div class="text-xs text-slate-500">Direct Message</div>
@@ -4923,13 +4932,13 @@
                 if (window.lucide) lucide.createIcons();
                 return;
             }
-            
+
             list.innerHTML = threads.map(t => {
-                const initials = t.name.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
+                const initials = t.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
                 const timeAgo = getTimeAgo(t.last_message_at);
                 const preview = (t.last_message || '').slice(0, 38) + ((t.last_message || '').length > 38 ? '…' : '');
                 return `
-                <button onclick="openDMThread(${t.user_id}, '${t.name.replace(/'/g,"\\'")}', '${t.picture || ''}')"
+                <button onclick="openDMThread(${t.user_id}, '${t.name.replace(/'/g, "\\'")}', '${t.picture || ''}')"
                     class="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors group ${activeDMUserId === t.user_id ? 'bg-white/5' : ''}" id="thread-${t.user_id}">
                     <div class="relative flex-shrink-0">
                         ${t.picture ? `<img src="${t.picture}" class="w-10 h-10 rounded-full object-cover border border-white/10">` : `<div class="w-10 h-10 rounded-full bg-indigo-500/30 flex items-center justify-center text-xs font-bold text-indigo-300">${initials}</div>`}
@@ -4947,33 +4956,33 @@
             }).join('');
             if (window.lucide) lucide.createIcons();
         }
-        
+
         async function openDMThread(userId, name, picture) {
             activeDMUserId = userId;
             activeDMUserName = name;
-            
+
             // Update header
             const avatarEl = document.getElementById('dm-chat-avatar');
             const nameEl = document.getElementById('dm-chat-name');
-            const initials = name.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
+            const initials = name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
             nameEl.textContent = name;
             if (picture) {
                 avatarEl.innerHTML = `<img src="${picture}" class="w-full h-full rounded-full object-cover">`;
             } else {
                 avatarEl.textContent = initials;
             }
-            
+
             // Show chat pane on mobile
             const chatPane = document.getElementById('dm-chat-pane');
             const threadPane = document.getElementById('dm-thread-list-pane');
             chatPane.classList.remove('hidden');
             chatPane.classList.add('flex');
             threadPane.classList.add('hidden', 'md:flex');
-            
+
             // Load messages
             const msgList = document.getElementById('dm-messages-list');
             msgList.innerHTML = `<div class="flex-1 flex items-center justify-center"><div class="animate-spin w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full"></div></div>`;
-            
+
             const res = await authFetch(`/api/inbox/thread/${userId}`);
             if (!res || !res.ok) {
                 msgList.innerHTML = `<div class="flex-1 flex items-center justify-center text-slate-500 text-sm">Could not load messages.</div>`;
@@ -4982,11 +4991,11 @@
             const data = await res.json();
             renderDMBubbles(data.messages, msgList);
             updateInboxBadge();
-            
+
             // Refresh thread list to clear unread indicators
             loadDMThreads();
         }
-        
+
         function closeDMThread() {
             activeDMUserId = null;
             const chatPane = document.getElementById('dm-chat-pane');
@@ -4995,7 +5004,7 @@
             chatPane.classList.remove('flex');
             threadPane.classList.remove('hidden', 'md:flex');
         }
-        
+
         function renderDMBubbles(messages, container) {
             if (!messages || messages.length === 0) {
                 container.innerHTML = `
@@ -5006,15 +5015,15 @@
                 if (window.lucide) lucide.createIcons();
                 return;
             }
-            
+
             container.innerHTML = messages.map(m => buildBubble(m)).join('');
             container.scrollTop = container.scrollHeight;
             if (window.lucide) lucide.createIcons();
         }
-        
+
         function buildBubble(m) {
-            const timeStr = new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-            
+            const timeStr = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
             if (m.type === 'recommendation' && m.content_id) {
                 // Film card bubble
                 const isMine = m.is_mine;
@@ -5031,7 +5040,7 @@
                             </div>
                             <div class="p-3">
                                 <p class="text-white text-sm font-bold mb-1 line-clamp-1">${m.message || 'Watch this!'}</p>
-                                ${!isMine ? `<button onclick="addToWatchlistFromDM(parseInt(this.dataset.id), this.dataset.title)" data-id="${m.content_id || 0}" data-title="${(m.message||'Watch this!')}"
+                                ${!isMine ? `<button onclick="addToWatchlistFromDM(parseInt(this.dataset.id), this.dataset.title)" data-id="${m.content_id || 0}" data-title="${(m.message || 'Watch this!')}"
                                     class="w-full mt-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-1.5 rounded-lg transition-colors">
                                     + Add to Watchlist
                                 </button>` : ''}
@@ -5041,31 +5050,31 @@
                     </div>
                 </div>`;
             }
-            
+
             // Standard text bubble
             const isMine = m.is_mine;
             return `
             <div class="flex ${isMine ? 'justify-end' : 'justify-start'} group">
                 <div class="max-w-[70%]">
-                    <div class="${isMine 
-                        ? 'bg-indigo-600 text-white rounded-2xl rounded-br-md' 
-                        : 'bg-[#1e293b] text-slate-200 rounded-2xl rounded-bl-md'
-                    } px-4 py-2.5 text-sm leading-relaxed shadow-sm">
+                    <div class="${isMine
+                    ? 'bg-indigo-600 text-white rounded-2xl rounded-br-md'
+                    : 'bg-[#1e293b] text-slate-200 rounded-2xl rounded-bl-md'
+                } px-4 py-2.5 text-sm leading-relaxed shadow-sm">
                         ${m.message || ''}
                     </div>
                     <div class="text-xs text-slate-600 mt-1 opacity-0 group-hover:opacity-100 transition-opacity ${isMine ? 'text-right pr-1' : 'pl-1'}">${timeStr}</div>
                 </div>
             </div>`;
         }
-        
+
         async function sendDMFromInput() {
             if (!activeDMUserId) return;
             const input = document.getElementById('dm-message-input');
             const text = input.value.trim();
             if (!text) return;
-            
+
             input.value = '';
-            
+
             // Optimistic: add bubble immediately
             const msgList = document.getElementById('dm-messages-list');
             const fakeBubble = document.createElement('div');
@@ -5077,7 +5086,7 @@
             });
             msgList.appendChild(fakeBubble.firstElementChild);
             msgList.scrollTop = msgList.scrollHeight;
-            
+
             // Send in background
             await authFetch('/api/inbox/send', {
                 method: 'POST',
@@ -5085,24 +5094,24 @@
                 body: JSON.stringify({ recipient_id: activeDMUserId, content: text, type: 'dm' })
             });
         }
-        
+
         async function addToWatchlistFromDM(tmdbId, title) {
             if (!tmdbId) return;
             showToast(`Adding "${title}" to your watchlist...`);
             const res = await authFetch('/api/log', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tmdb_id: tmdbId, status: 'watchlist', media_type: 'movie' })
             });
             if (res && res.ok) showToast(`✅ "${title}" added!`);
         }
-        
+
         function getTimeAgo(isoString) {
             const diff = (Date.now() - new Date(isoString)) / 1000;
             if (diff < 60) return 'now';
-            if (diff < 3600) return Math.floor(diff/60) + 'm';
-            if (diff < 86400) return Math.floor(diff/3600) + 'h';
-            return Math.floor(diff/86400) + 'd';
+            if (diff < 3600) return Math.floor(diff / 60) + 'm';
+            if (diff < 86400) return Math.floor(diff / 3600) + 'h';
+            return Math.floor(diff / 86400) + 'd';
         }
 
         async function markInboxAsRead() {
@@ -6588,6 +6597,119 @@
                 document.getElementById('wrapped-audio').pause();
                 document.getElementById('wrapped-audio').currentTime = 0;
             } catch (e) { }
+        }
+
+        // ─── Browser Notifications ──────────────────────────────────────────────
+
+        function requestNotifPermission() {
+            if (!('Notification' in window)) return; // Not supported
+            if (Notification.permission === 'granted') return; // Already have it
+            if (localStorage.getItem('notif_asked')) return; // Already asked
+            // Ask after a brief delay so the user is settled
+            setTimeout(() => {
+                Notification.requestPermission().then(perm => {
+                    localStorage.setItem('notif_asked', '1');
+                    if (perm === 'granted') {
+                        showToast('🔔 Notifications enabled! You\'ll hear about new DMs.');
+                    }
+                });
+            }, 2000);
+        }
+
+        let _lastKnownUnread = 0;
+        let _notifPollTimer = null;
+
+        async function startNotifPolling() {
+            // Initial badge update on boot
+            await _pollForNewMessages();
+            // Then poll every 30 seconds
+            _notifPollTimer = setInterval(_pollForNewMessages, 30000);
+        }
+
+        async function _pollForNewMessages() {
+            try {
+                const res = await authFetch('/api/inbox/threads');
+                if (!res || !res.ok) return;
+                const threads = await res.json();
+
+                const totalUnread = threads.reduce((sum, t) => sum + (t.unread_count || 0), 0);
+
+                // Update both inbox badges
+                const badge = document.getElementById('inbox-badge');
+                const mobileBadge = document.getElementById('mobile-inbox-badge');
+                [badge, mobileBadge].forEach(el => {
+                    if (!el) return;
+                    el.textContent = totalUnread;
+                    el.classList.toggle('hidden', totalUnread === 0);
+                });
+
+                // Show browser notification only for genuinely new messages
+                if (totalUnread > _lastKnownUnread && _lastKnownUnread >= 0) {
+                    const delta = totalUnread - _lastKnownUnread;
+                    // Find the thread with the most recent unread
+                    const hotThread = threads.find(t => t.unread_count > 0);
+                    if (hotThread) {
+                        fireNotification(
+                            `💬 ${hotThread.name}`,
+                            hotThread.last_message || `${delta} new message${delta > 1 ? 's' : ''}`,
+                            hotThread.picture
+                        );
+                    }
+
+                    // Also update the notification bell
+                    const notifBadge = document.getElementById('notif-badge');
+                    if (notifBadge) notifBadge.classList.remove('hidden');
+
+                    // Inject into in-app notif dropdown
+                    const notifList = document.getElementById('notif-list');
+                    if (notifList && hotThread) {
+                        const item = document.createElement('div');
+                        item.className = 'flex items-center gap-3 p-2 hover:bg-white/5 rounded-xl cursor-pointer';
+                        item.innerHTML = `
+                            ${hotThread.picture ? `<img src="${hotThread.picture}" class="w-8 h-8 rounded-full flex-shrink-0">` : `<div class="w-8 h-8 rounded-full bg-indigo-500/30 flex items-center justify-center text-xs font-bold text-indigo-300 flex-shrink-0">${hotThread.name[0]}</div>`}
+                            <div class="flex-1 min-w-0">
+                                <div class="text-xs font-bold text-white">${hotThread.name}</div>
+                                <div class="text-xs text-slate-400 truncate">${hotThread.last_message || 'New message'}</div>
+                            </div>
+                            <div class="w-2 h-2 bg-indigo-500 rounded-full flex-shrink-0"></div>
+                        `;
+                        item.onclick = () => { openInbox(); openDMThread(hotThread.user_id, hotThread.name, hotThread.picture); };
+                        // Remove placeholder if present
+                        const placeholder = notifList.querySelector('.text-center');
+                        if (placeholder) placeholder.remove();
+                        notifList.prepend(item);
+                    }
+                }
+
+                _lastKnownUnread = totalUnread;
+            } catch (e) {
+                // Silently fail — user may not be logged in yet
+            }
+        }
+
+        function fireNotification(title, body, iconUrl) {
+            if (!('Notification' in window) || Notification.permission !== 'granted') return;
+            // Don't fire if the tab is active and visible
+            if (!document.hidden) return;
+
+            const n = new Notification(title, {
+                body: body,
+                icon: iconUrl || '/static/icon.png',
+                badge: '/static/icon.png',
+                tag: 'watched-dm', // Replaces previous notification
+                silent: false
+            });
+            n.onclick = () => {
+                window.focus();
+                n.close();
+            };
+        }
+
+        function clearNotifications() {
+            const notifList = document.getElementById('notif-list');
+            if (notifList) notifList.innerHTML = '<div class="text-center text-slate-500 text-xs py-6">No new updates</div>';
+            const notifBadge = document.getElementById('notif-badge');
+            if (notifBadge) notifBadge.classList.add('hidden');
         }
 
         function loadAnalytics() {
