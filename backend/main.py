@@ -2476,6 +2476,85 @@ def get_inbox(db: Session = Depends(get_db), current_user: User = Depends(get_cu
         })
     return results
 
+@app.get("/api/inbox/threads")
+def get_inbox_threads(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Returns all conversations, grouped by the other participant. Used by the new DM UI."""
+    from sqlalchemy import or_, func
+    
+    # Get all messages where user is sender or receiver
+    all_msgs = db.query(InboxMessage).filter(
+        or_(
+            InboxMessage.sender_id == current_user.id,
+            InboxMessage.receiver_id == current_user.id
+        )
+    ).order_by(InboxMessage.created_at.desc()).all()
+    
+    # Group by conversation partner
+    threads = {}
+    for msg in all_msgs:
+        # The "other" party is whoever is not the current user
+        other_id = msg.receiver_id if msg.sender_id == current_user.id else msg.sender_id
+        if other_id not in threads:
+            other_user = db.query(User).filter(User.id == other_id).first()
+            threads[other_id] = {
+                "user_id": other_id,
+                "name": other_user.name if other_user else "Unknown",
+                "picture": other_user.picture if other_user else "",
+                "last_message": msg.message or ("📽️ Recommendation" if msg.type == "recommendation" else "📩 Message"),
+                "last_message_at": msg.created_at.isoformat(),
+                "unread_count": 0
+            }
+        # Count unread messages received from this person
+        if msg.receiver_id == current_user.id and not msg.read:
+            threads[other_id]["unread_count"] += 1
+
+    return list(threads.values())
+
+
+@app.get("/api/inbox/thread/{other_user_id}")
+def get_thread_messages(other_user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Returns full conversation with a specific user, and marks their messages as read."""
+    from sqlalchemy import or_
+    
+    msgs = db.query(InboxMessage).filter(
+        or_(
+            (InboxMessage.sender_id == current_user.id) & (InboxMessage.receiver_id == other_user_id),
+            (InboxMessage.sender_id == other_user_id) & (InboxMessage.receiver_id == current_user.id)
+        )
+    ).order_by(InboxMessage.created_at.asc()).all()
+    
+    # Mark incoming messages as read
+    db.query(InboxMessage).filter(
+        InboxMessage.sender_id == other_user_id,
+        InboxMessage.receiver_id == current_user.id,
+        InboxMessage.read == False
+    ).update({"read": True})
+    db.commit()
+    
+    other_user = db.query(User).filter(User.id == other_user_id).first()
+    
+    results = []
+    for m in msgs:
+        results.append({
+            "id": m.id,
+            "sender_id": m.sender_id,
+            "is_mine": m.sender_id == current_user.id,
+            "type": m.type,
+            "content_id": m.content_id,
+            "message": m.message,
+            "created_at": m.created_at.isoformat()
+        })
+    
+    return {
+        "other_user": {
+            "id": other_user_id,
+            "name": other_user.name if other_user else "Unknown",
+            "picture": other_user.picture if other_user else ""
+        },
+        "messages": results
+    }
+
+
 @app.post("/api/inbox/send")
 def send_message(req: MessageRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     # Normalize ID
