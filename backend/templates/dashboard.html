@@ -44,6 +44,62 @@
             }
         }
 
+        @keyframes scanline {
+            0% {
+                transform: translateY(-100%);
+            }
+
+            100% {
+                transform: translateY(100vh);
+            }
+        }
+
+        @keyframes logoFlicker {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            48% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+
+            52% {
+                opacity: 1;
+            }
+
+            78% {
+                opacity: 1;
+            }
+
+            80% {
+                opacity: 0.6;
+            }
+
+            82% {
+                opacity: 1;
+            }
+        }
+
+        @keyframes progressFill {
+            0% {
+                width: 0%;
+            }
+
+            80% {
+                width: 85%;
+            }
+
+            100% {
+                width: 100%;
+            }
+        }
+
         .animate-swing {
             animation: swingIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
@@ -368,6 +424,38 @@
 </head>
 
 <body class="min-h-screen pb-12 selection:bg-indigo-500/30">
+
+    <!-- COLD BOOT OVERLAY: Only visible during Render cold start -->
+    <div id="coldboot-overlay" class="fixed inset-0 z-[200] bg-black flex flex-col items-center justify-center"
+        style="transition: opacity 1s ease-out;">
+        <!-- Scanline effect -->
+        <div class="absolute inset-0 overflow-hidden pointer-events-none">
+            <div
+                style="position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(to right, transparent, rgba(99, 102, 241, 0.5), transparent); animation: scanline 4s linear infinite;">
+            </div>
+        </div>
+        <!-- Film grain overlay -->
+        <div class="absolute inset-0 opacity-5"
+            style="background-image: url('data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\'><filter id=\'n\'><feTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\'/></filter><rect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'0.4\'/></svg>');">
+        </div>
+        <div class="relative z-10 text-center max-w-sm mx-auto px-8">
+            <!-- Logo -->
+            <div class="mb-10" style="animation: logoFlicker 5s ease-in-out infinite;">
+                <div class="text-7xl font-black tracking-tight"
+                    style="background: linear-gradient(135deg, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                    W</div>
+                <div class="text-white font-bold tracking-[0.4em] text-sm uppercase mt-1 opacity-70">Watched</div>
+            </div>
+            <!-- Status text -->
+            <p id="coldboot-status" class="text-slate-400 text-sm mb-8 font-mono">Starting engines...</p>
+            <!-- Progress bar -->
+            <div class="w-full bg-white/10 rounded-full h-0.5 overflow-hidden">
+                <div id="coldboot-bar" class="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
+                    style="width: 0%; transition: width 0.5s ease-out;"></div>
+            </div>
+            <p class="text-white/20 text-xs mt-6">Free tier cold start may take ~30s</p>
+        </div>
+    </div>
 
     <!-- Cinematic Mesh Background & Film Grain -->
     <div class="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
@@ -4673,7 +4761,88 @@
             document.cookie = `access_token = ${cookieToken}; path =/; max-age=86400; SameSite=Lax`;
         }
 
-        switchTab('watchlist'); // Default tab
+        // --- Cold Boot: Check backend health before initializing ---
+        async function wakeUpAndInit() {
+            const overlay = document.getElementById('coldboot-overlay');
+            const statusEl = document.getElementById('coldboot-status');
+            const barEl = document.getElementById('coldboot-bar');
+
+            function bootApp() {
+                switchTab('watchlist');
+                init();
+                StoryManager.init();
+                startAutoRefresh();
+            }
+
+            // --- STEP 1: Fast check (1s timeout) ---
+            // If the backend responds within 1 second, it's already warm.
+            // Skip the overlay entirely and boot immediately.
+            const fastCheck = new Promise((resolve) => {
+                fetch('/api/health')
+                    .then(res => resolve(res.ok))
+                    .catch(() => resolve(false));
+            });
+            const timeout = new Promise(resolve => setTimeout(() => resolve(false), 1000));
+
+            const isAlreadyAwake = await Promise.race([fastCheck, timeout]);
+
+            if (isAlreadyAwake) {
+                // Backend is warm: hide overlay instantly, boot the app
+                if (overlay) overlay.style.display = 'none';
+                bootApp();
+                return;
+            }
+
+            // --- STEP 2: Backend is cold. Show the overlay and poll until ready ---
+            if (overlay) {
+                overlay.style.display = 'flex';
+                overlay.style.opacity = '1';
+            }
+
+            const messages = [
+                'Popping the popcorn...',
+                'Dimming the lights...',
+                'Rolling the projector...',
+                'Loading your watchlist...',
+                'Almost there...',
+            ];
+            let messageIndex = 0;
+            let progress = 10;
+            if (barEl) barEl.style.width = progress + '%';
+
+            const messageTimer = setInterval(() => {
+                messageIndex = (messageIndex + 1) % messages.length;
+                if (statusEl) statusEl.textContent = messages[messageIndex];
+                progress = Math.min(progress + 12, 88);
+                if (barEl) barEl.style.width = progress + '%';
+            }, 2500);
+
+            // Keep polling every 2s until backend is up
+            let isAwake = false;
+            while (!isAwake) {
+                try {
+                    const res = await fetch('/api/health');
+                    if (res.ok) isAwake = true;
+                } catch (e) { /* still waking */ }
+                if (!isAwake) await new Promise(r => setTimeout(r, 2000));
+            }
+
+            clearInterval(messageTimer);
+            if (statusEl) statusEl.textContent = 'Ready!';
+            if (barEl) barEl.style.width = '100%';
+
+            // Smooth fade out
+            await new Promise(r => setTimeout(r, 400));
+            if (overlay) {
+                overlay.style.opacity = '0';
+                overlay.style.pointerEvents = 'none';
+                setTimeout(() => { if (overlay) overlay.style.display = 'none'; }, 1000);
+            }
+
+            bootApp();
+        }
+
+        wakeUpAndInit();
         // init(); // Moved to end
         // StoryManager.init(); // Moved to end
         // startAutoRefresh(); // Moved to end
@@ -5980,9 +6149,9 @@
 
         // 3. Wrapped Seasonality Logic
         const currentMonth = new Date().getMonth(); // 0 is Jan, 10 is Nov, 11 is Dec
-        const isWrappedSeason = (currentMonth === 10 || currentMonth === 11 || currentMonth === 0);
+        const isWrappedSeasonNow = (currentMonth === 10 || currentMonth === 11 || currentMonth === 0);
 
-        if (!isWrappedSeason) {
+        if (!isWrappedSeasonNow) {
             const btnWrap = document.getElementById('btn-launch-wrapped');
             if (btnWrap) btnWrap.style.display = 'none';
             const selectTime = document.getElementById('analytics-time-range');
