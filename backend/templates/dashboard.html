@@ -15,6 +15,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <!-- jsVectorMap for World Map Heatmap -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsvectormap/dist/css/jsvectormap.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/jsvectormap"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsvectormap/dist/maps/world.js"></script>
     <style>
         @keyframes swingIn {
             0% {
@@ -650,10 +654,16 @@
                 </div>
 
                 <div id="view-watchlist" class="view-section">
-                    <h2 class="text-2xl font-semibold mb-6 flex items-center gap-2">
-                        <span class="w-1 h-6 bg-indigo-500 rounded-full"></span>
-                        Up Next
-                    </h2>
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-2xl font-semibold flex items-center gap-2">
+                            <span class="w-1 h-6 bg-indigo-500 rounded-full"></span>
+                            Up Next
+                        </h2>
+                        <button onclick="startRoulette()"
+                            class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105 active:scale-95">
+                            <i data-lucide="shuffle" class="w-4 h-4"></i> Shuffle Watchlist
+                        </button>
+                    </div>
                     <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6" id="watchlist-grid">
                         <!-- Items injected here -->
                     </div>
@@ -697,131 +707,125 @@
                 </div>
 
                 <div id="view-analytics" class="view-section hidden">
-                    <!-- Charts Grid -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                        <!-- 1. Genres -->
-                        <div class="glass rounded-2xl p-6">
-                            <h3 class="text-lg font-semibold mb-4 text-slate-300">Top Genres</h3>
-                            <div class="h-48">
-                                <canvas id="genreChart"></canvas>
+
+                    <!-- NEW Header with Wrapped Button -->
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                        <div>
+                            <h2 class="text-3xl font-black text-white">Deep Analytics</h2>
+                            <p class="text-slate-400 text-sm">Understand your cinematic DNA.</p>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <select id="analytics-time-range" onchange="loadAnalytics()"
+                                class="bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="all" class="bg-gray-900">All Time</option>
+                                <option value="2025" class="bg-gray-900">2025 Year in Review</option>
+                            </select>
+                            <button onclick="launchWrapped()"
+                                class="hidden md:flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold py-2 px-6 rounded-full shadow-lg shadow-purple-500/25 transition-transform hover:scale-105"
+                                id="btn-launch-wrapped">
+                                <i data-lucide="play" class="w-4 h-4"></i> Play Wrapped
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Top Binge & Persona Metrics -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+                        <div class="glass rounded-2xl p-6 flex flex-col justify-center relative overflow-hidden group">
+                            <div
+                                class="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/20 rounded-full blur-xl group-hover:bg-blue-500/30 transition-colors pointer-events-none">
+                            </div>
+                            <div class="text-xs text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                <i data-lucide="clock" class="w-4 h-4"></i> Binge Velocity
+                            </div>
+                            <div class="text-4xl font-black text-white mb-1" id="stat-binge-velocity">0 <span
+                                    class="text-lg text-slate-500 font-medium">hrs</span></div>
+                            <div class="text-sm text-slate-500" id="stat-binge-subtitle">Average watch session</div>
+                        </div>
+                        <div class="glass rounded-2xl p-6 flex flex-col justify-center relative overflow-hidden group">
+                            <div
+                                class="absolute -right-4 -top-4 w-24 h-24 bg-purple-500/20 rounded-full blur-xl group-hover:bg-purple-500/30 transition-colors pointer-events-none">
+                            </div>
+                            <div class="text-xs text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                <i data-lucide="target" class="w-4 h-4"></i> Completion Rate
+                            </div>
+                            <div class="text-4xl font-black text-white mb-1" id="stat-completion">0%</div>
+                            <div class="text-sm text-slate-500">Items finished vs watchlist</div>
+                        </div>
+                        <div class="glass rounded-2xl p-6 flex flex-col justify-center relative overflow-hidden group">
+                            <div
+                                class="absolute -right-4 -top-4 w-24 h-24 bg-amber-500/20 rounded-full blur-xl group-hover:bg-amber-500/30 transition-colors pointer-events-none">
+                            </div>
+                            <div class="text-xs text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                <i data-lucide="user-check" class="w-4 h-4"></i> Critic Persona
+                            </div>
+                            <div class="text-2xl font-black text-amber-400 mb-1" id="stat-persona">The Neutralist</div>
+                            <div class="text-sm text-slate-500">Based on your rating curve</div>
+                        </div>
+                    </div>
+
+                    <!-- Asymmetrical Grid Row 1: Map & Scatterplot -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                        <!-- Cinema World Map (Span 2) -->
+                        <div class="glass rounded-2xl p-6 lg:col-span-2 flex flex-col">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-semibold text-slate-300">Global Heatmap</h3>
+                                <div class="text-xs bg-white/10 px-2 py-1 rounded text-slate-400"
+                                    id="top-country-badge">Top: N/A</div>
+                            </div>
+                            <div class="flex-1 w-full relative min-h-[300px]" id="world-map-container">
+                                <div id="vmap" style="width: 100%; height: 100%;"></div>
                             </div>
                         </div>
-                        <!-- 2. Format Split -->
-                        <div class="glass rounded-2xl p-6">
-                            <h3 class="text-lg font-semibold mb-4 text-slate-300">Movies vs Series</h3>
-                            <div class="h-48">
-                                <canvas id="formatChart"></canvas>
+
+                        <!-- Critic Curve Scatter (Span 1) -->
+                        <div class="glass rounded-2xl p-6 flex flex-col">
+                            <h3 class="text-lg font-semibold mb-1 text-slate-300">The Critic Curve</h3>
+                            <p class="text-xs text-slate-500 mb-4">Your ratings vs Global Popularity</p>
+                            <div class="flex-1 relative min-h-[300px] flex items-center justify-center">
+                                <canvas id="scatterChart"></canvas>
+                                <!-- Loading overlay if fetch is slow -->
+                                <div id="scatter-loader"
+                                    class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center hidden rounded-xl">
+                                    <div
+                                        class="animate-spin w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full">
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <!-- 3. Activity -->
+                    </div>
+
+                    <!-- Asymmetrical Grid Row 2: Bar Charts & Activity -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <!-- Decade Definer -->
                         <div class="glass rounded-2xl p-6">
+                            <h3 class="text-lg font-semibold mb-4 text-slate-300">Decade Definer</h3>
+                            <div class="h-48 relative">
+                                <canvas id="eraChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Watch Activity Heatmap -->
+                        <div class="glass rounded-2xl p-6 col-span-1 md:col-span-2">
                             <h3 class="text-lg font-semibold mb-4 text-slate-300">Watch Activity</h3>
                             <div class="h-48" id="activity-heatmap-container">
                                 <canvas id="activityChart"></canvas>
                             </div>
                         </div>
-                        <!-- 4. Eras -->
+                    </div>
+
+                    <!-- Genres & Formats Row -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
                         <div class="glass rounded-2xl p-6">
-                            <h3 class="text-lg font-semibold mb-4 text-slate-300">Eras (Decades)</h3>
-                            <div class="h-48">
-                                <canvas id="eraChart"></canvas>
+                            <h3 class="text-lg font-semibold mb-4 text-slate-300">Top Genres</h3>
+                            <div class="h-48 relative">
+                                <canvas id="genreChart"></canvas>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- NEW: Deep Dive Analytics -->
-                    <div class="mb-8">
-                        <h3 class="text-xl font-bold mb-4 text-white flex items-center gap-2">
-                            <i data-lucide="brain" class="w-5 h-5 text-purple-400"></i> Deep Dive
-                        </h3>
-                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <!-- Stats Cards -->
-                            <div class="space-y-4">
-                                <div class="glass rounded-2xl p-6 flex items-center justify-between">
-                                    <div>
-                                        <div class="text-xs text-slate-400 uppercase tracking-widest mb-1">Completion
-                                            Rate</div>
-                                        <div class="text-3xl font-black text-emerald-400" id="stat-completion">0%</div>
-                                    </div>
-                                    <div class="opacity-20"><i data-lucide="target" class="w-8 h-8"></i></div>
-                                </div>
-                                <div class="glass rounded-2xl p-6 flex items-center justify-between">
-                                    <div>
-                                        <div class="text-xs text-slate-400 uppercase tracking-widest mb-1">Avg Rating
-                                        </div>
-                                        <div class="text-3xl font-black text-yellow-400" id="stat-rating">0.0</div>
-                                    </div>
-                                    <div class="opacity-20"><i data-lucide="star" class="w-8 h-8"></i></div>
-                                </div>
-                                <div class="glass rounded-2xl p-6 flex items-center justify-between">
-                                    <div>
-                                        <div class="text-xs text-slate-400 uppercase tracking-widest mb-1">Masterpieces
-                                        </div>
-                                        <div class="text-3xl font-black text-indigo-400" id="stat-perfect">0</div>
-                                    </div>
-                                    <div class="opacity-20"><i data-lucide="gem" class="w-8 h-8"></i></div>
-                                </div>
+                        <div class="glass rounded-2xl p-6">
+                            <h3 class="text-lg font-semibold mb-4 text-slate-300">Format Split</h3>
+                            <div class="h-48 relative">
+                                <canvas id="formatChart"></canvas>
                             </div>
-                            <!-- Runtime Chart -->
-                            <div class="glass rounded-2xl p-6 col-span-2">
-                                <h3 class="text-lg font-semibold mb-4 text-slate-300">Runtime Preference</h3>
-                                <div class="h-64">
-                                    <canvas id="runtimeChart"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- NEW: Bi-Weekly Sprint Report -->
-                    <div class="glass rounded-2xl p-8 mb-8 relative overflow-hidden">
-                        <div
-                            class="absolute top-0 right-0 p-32 bg-blue-500/10 rounded-full blur-3xl pointer-events-none">
-                        </div>
-                        <div class="relative z-10">
-                            <h3 class="text-xl font-bold mb-6 flex items-center gap-2">
-                                <i data-lucide="zap" class="w-6 h-6 text-blue-400 mr-2"></i> SPRINT REPORT (Last 14
-                                Days)
-                            </h3>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div>
-                                    <div class="flex items-baseline gap-2 mb-2">
-                                        <span class="text-5xl font-black text-white" id="sprint-hours">0</span>
-                                        <span class="text-xl text-slate-400">hours</span>
-                                    </div>
-                                    <p class="text-sm text-slate-400 mb-6" id="sprint-label">You've been active!</p>
-                                    <div class="flex gap-4 text-center">
-                                        <div class="bg-white/5 rounded-lg p-3 flex-1">
-                                            <div class="text-2xl font-bold text-white" id="sprint-count">0</div>
-                                            <div class="text-xs text-slate-500 uppercase tracking-wider">Items</div>
-                                        </div>
-                                        <div class="bg-white/5 rounded-lg p-3 flex-1">
-                                            <div class="text-2xl font-bold text-white" id="sprint-minutes">0</div>
-                                            <div class="text-xs text-slate-500 uppercase tracking-wider">Minutes</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="bg-black/20 rounded-xl p-4">
-                                    <h4 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3">
-                                        Checklist</h4>
-                                    <ul class="space-y-2 max-h-48 overflow-y-auto" id="sprint-list">
-                                        <!-- Injected -->
-                                        <li class="text-slate-500 italic text-sm">No activity in this sprint.</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Coming Soon -->
-                    <div class="mb-8">
-                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
-                            <i data-lucide="rocket" class="w-6 h-6 text-purple-400 mr-2"></i> Upcoming & On Air
-                        </h3>
-                        <div class="flex gap-4 overflow-x-auto pb-4 snap-x no-scrollbar" id="coming-soon-list">
-                            <!-- Injected -->
-                            <div
-                                class="shrink-0 w-40 h-60 bg-white/5 rounded-xl flex items-center justify-center animate-pulse">
-                                Loading...</div>
                         </div>
                     </div>
 
@@ -1700,6 +1704,8 @@
         // --- API Client ---
         // Use relative path for production compatibility (works on localhost too)
         const API_URL = '';
+        const FALLBACK_POSTER = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22200%22%20height%3D%22300%22%20fill%3D%22%231e293b%22%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%2F%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20fill%3D%22%23475569%22%20font-family%3D%22sans-serif%22%20font-size%3D%2214%22%20text-anchor%3D%22middle%22%20alignment-baseline%3D%22middle%22%3ENo%20Image%3C%2Ftext%3E%3C%2Fsvg%3E';
+        const FALLBACK_AVATAR = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22150%22%20height%3D%22150%22%20fill%3D%22%231e293b%22%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%2F%3E%3Ccircle%20cx%3D%2275%22%20cy%3D%2260%22%20r%3D%2230%22%20fill%3D%22%23334155%22%2F%3E%3Cpath%20d%3D%22M25%20140%20a50%2050%200%200%201%20100%200%22%20fill%3D%22%23334155%22%2F%3E%3C%2Fsvg%3E';
 
         async function authFetch(endpoint, options = {}) {
             const token = localStorage.getItem('access_token');
@@ -1814,7 +1820,7 @@
                 data.forEach(item => {
                     const div = document.createElement('div');
                     div.className = 'p-3 hover:bg-white/10 cursor-pointer flex gap-3 items-center border-b border-white/5';
-                    const img = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : 'https://via.placeholder.com/40x60';
+                    const img = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : FALLBACK_POSTER;
                     div.innerHTML = `
                         <img src="${img}" class="w-8 h-12 object-cover rounded">
                         <div>
@@ -1968,6 +1974,16 @@
             if (window.lucide) lucide.createIcons();
         }
 
+        async function refreshRecommendations() {
+            // Optional: Add visual feedback to button
+            const btn = document.querySelector('button[onclick="refreshRecommendations()"]');
+            if (btn) btn.classList.add('opacity-50', 'pointer-events-none');
+
+            await loadRecs();
+
+            if (btn) btn.classList.remove('opacity-50', 'pointer-events-none');
+        }
+
         function handleLogout() {
             localStorage.removeItem('access_token');
             localStorage.removeItem('user_info');
@@ -2018,7 +2034,7 @@
         }
 
         function renderCard(item, isWatchlist = false, isBlockedView = false) {
-            const poster = item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : 'https://via.placeholder.com/500x750?text=No+Image';
+            const poster = item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : FALLBACK_POSTER;
             const rating = item.rating || 'NR';
             const typeLabel = item.media_type === 'movie' ? 'Movie' : 'TV';
             const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(item.title + ' ' + (item.media_type === 'tv' ? 'tv series' : 'movie'))}`;
@@ -2098,7 +2114,7 @@
         function renderRecCard(item) {
             const posterUrl = item.poster_path
                 ? `https://image.tmdb.org/t/p/w200${item.poster_path}`
-                : 'https://via.placeholder.com/200x300';
+                : FALLBACK_POSTER;
 
             return `
                 <div class="flex gap-4 items-center p-3 hover:bg-slate-800/50 rounded-lg transition-colors cursor-pointer" onclick="window.open('https://google.com/search?q=${item.title}', '_blank')">
@@ -2343,7 +2359,7 @@
         }
 
         function updateProfileUI(user) {
-            console.log("Updating Profile UI:", user);
+            // Profile UI updated silently
             if (!user) return;
             currentUser = user; // Update global current user
             document.getElementById('my-profile-pic').src = user.picture;
@@ -2393,7 +2409,7 @@
                 <div class="flex gap-2 flex-wrap mt-3">
                     ${(user.badges || []).map(b => `
                         <div class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm border border-white/10" title="${b.name}: ${b.description}">
-                            ${b.icon.startsWith('http') || b.icon.length > 20 ? `<i data-lucide="${b.icon}" class="w-4 h-4 text-yellow-400"></i>` : b.icon}
+                            ${b.icon.startsWith('http') ? `<img src="${b.icon}" class="w-4 h-4 rounded-full">` : (b.icon.length < 30 && /^[a-z0-9-]+$/.test(b.icon) ? `<i data-lucide="${b.icon}" class="w-4 h-4 text-yellow-400"></i>` : b.icon)}
                         </div>
                     `).join('')}
                 </div>
@@ -2589,7 +2605,7 @@
                         return;
                     }
                     container.innerHTML = items.map(item => {
-                        const img = item.poster_path ? `https://image.tmdb.org/t/p/w300${item.poster_path}` : 'https://via.placeholder.com/200x300';
+                        const img = item.poster_path ? `https://image.tmdb.org/t/p/w300${item.poster_path}` : FALLBACK_POSTER;
                         const type = item.media_type === 'movie' ? 'Movie' : 'TV';
                         const date = item.release_date || item.first_air_date || 'Soon';
                         return `
@@ -2623,7 +2639,7 @@
                     const name = document.getElementById('my-profile-name');
                     const bio = document.getElementById('my-profile-bio');
 
-                    if (pic) pic.src = user.picture || 'https://via.placeholder.com/150';
+                    if (pic) pic.src = user.picture || FALLBACK_AVATAR;
                     if (name) name.innerText = user.name || 'User';
                     if (bio) bio.innerText = user.bio || 'No bio yet.';
 
@@ -2633,6 +2649,82 @@
             } catch (e) {
                 console.error("Profile load failed", e);
             }
+        }
+
+        // --- MOVIE ROULETTE LOGIC ---
+        let rouletteWinner = null;
+        async function startRoulette() {
+            const data = await fetchHistory();
+            const watchlist = data.filter(i => i.status === 'watchlist');
+
+            if (watchlist.length < 2) {
+                showToast("Add more movies to your Watchlist first!", "error");
+                return;
+            }
+
+            const modal = document.getElementById('roulette-modal');
+            const spinner = document.getElementById('roulette-spinner');
+            const overlay = document.getElementById('roulette-winner-actions');
+            const watchBtn = document.getElementById('roulette-watch-btn');
+
+            modal.classList.remove('hidden');
+            overlay.classList.add('opacity-0', 'pointer-events-none');
+            spinner.style.transition = 'none';
+            spinner.style.transform = 'translateY(0)';
+
+            // Build Spinner Track
+            const posterHeight = 300; // Expected h-72 = 288px + gap
+            const totalSpins = 20; // Number of items to spin past
+            let trackHtml = '';
+
+            // Generate random items for the blur track
+            for (let i = 0; i < totalSpins; i++) {
+                const randomItem = watchlist[Math.floor(Math.random() * watchlist.length)];
+                const poster = randomItem.poster_path ? `https://image.tmdb.org/t/p/w342${randomItem.poster_path}` : FALLBACK_POSTER;
+                trackHtml += `<img src="${poster}" class="w-full h-72 object-cover rounded shadow-lg shrink-0 my-2">`;
+            }
+
+            // Pick actual winner
+            rouletteWinner = watchlist[Math.floor(Math.random() * watchlist.length)];
+            const winnerPoster = rouletteWinner.poster_path ? `https://image.tmdb.org/t/p/w342${rouletteWinner.poster_path}` : FALLBACK_POSTER;
+            trackHtml += `<img src="${winnerPoster}" class="w-full h-72 object-cover rounded border-4 border-indigo-500 shadow-[0_0_30px_rgba(99,102,241,0.5)] shrink-0 my-2">`;
+
+            // Add padding at bottom
+            for (let i = 0; i < 3; i++) {
+                const randomItem = watchlist[Math.floor(Math.random() * watchlist.length)];
+                const poster = randomItem.poster_path ? `https://image.tmdb.org/t/p/w342${randomItem.poster_path}` : FALLBACK_POSTER;
+                trackHtml += `<img src="${poster}" class="w-full h-72 object-cover rounded shadow-lg shrink-0 my-2 opacity-50">`;
+            }
+
+            spinner.innerHTML = trackHtml;
+
+            // Force reflow
+            spinner.offsetHeight;
+
+            // Calculate final position
+            // Center of container is approx 192px down. Center of poster is 144px.
+            // Target offset = Total elements before winner * (288 + 16 inline gap)
+            const targetOffset = (totalSpins * 304) - 48;
+
+            spinner.style.transition = 'transform 3.5s cubic-bezier(0.1, 0.7, 0.1, 1)';
+            spinner.style.transform = `translateY(-${targetOffset}px)`;
+
+            // Handle spin end
+            setTimeout(() => {
+                document.getElementById('roulette-winner-title').innerText = rouletteWinner.title;
+                watchBtn.onclick = () => {
+                    const typeLabel = rouletteWinner.media_type === 'movie' ? 'movie' : 'tv series';
+                    window.open(`https://www.google.com/search?q=${encodeURIComponent(rouletteWinner.title + ' ' + typeLabel)}`, '_blank');
+                    modal.classList.add('hidden');
+                };
+                overlay.classList.remove('opacity-0', 'pointer-events-none');
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    colors: ['#6366f1', '#e2e8f0', '#818cf8']
+                });
+            }, 3500);
         }
 
         async function init() {
@@ -2648,7 +2740,7 @@
             loadUpcoming(); // <--- Added here
             try {
                 const [history, stats] = await Promise.all([fetchHistory(), fetchStats()]);
-                console.log("DEBUG STATS:", stats);
+                // stats gathered
                 // showToast("Debug: " + JSON.stringify(stats?.counts || "No Counts")); 
 
                 // Safety Check
@@ -2673,7 +2765,8 @@
                 if (window.currentUser && !window.currentUser.has_completed_onboarding) {
                     initTasteMakerWizard();
                 } else {
-                    document.getElementById('main-app-content').style.display = 'block';
+                    const mainAppContent = document.getElementById('main-scroll-area');
+                    if (mainAppContent) mainAppContent.style.display = 'block';
                     setTimeout(showZeroStateTooltips, 2000); // Show tooltips for returning users
                 }
 
@@ -2694,13 +2787,19 @@
                 <span class="text-purple-300">${seriesHours}h Series</span>
             `;
 
-                document.getElementById('stat-velocity').innerText = stats.avg_hours_to_watch + 'h';
+                const elVelocity = document.getElementById('stat-binge-velocity');
+                if (elVelocity) elVelocity.innerText = stats.avg_hours_to_watch + 'h';
 
                 // --- DEEP DIVE CARDS ---
                 if (stats.counts.completion_rate !== undefined) {
-                    document.getElementById('stat-completion').innerText = stats.counts.completion_rate + '%';
-                    document.getElementById('stat-rating').innerText = stats.counts.avg_rating;
-                    document.getElementById('stat-perfect').innerText = stats.counts.perfect_scores;
+                    const elCompletion = document.getElementById('stat-completion');
+                    if (elCompletion) elCompletion.innerText = stats.counts.completion_rate + '%';
+
+                    const elRating = document.getElementById('stat-rating');
+                    if (elRating) elRating.innerText = stats.counts.avg_rating;
+
+                    const elPerfect = document.getElementById('stat-perfect');
+                    if (elPerfect) elPerfect.innerText = stats.counts.perfect_scores;
                 }
 
                 // 2. Grids
@@ -2902,6 +3001,18 @@
                         }
                     });
                 }
+
+                // Save stats globally for deferred loading
+                window.lastStats = stats;
+
+                // Initialize Phase 2 Advanced Charts ONLY if the tab is visible (Fixes jsVectorMap NaN crash)
+                if (!document.getElementById('view-analytics').classList.contains('hidden')) {
+                    await initPhase2Charts(stats);
+                    window.phase2ChartsLoaded = true;
+                } else {
+                    window.phase2ChartsLoaded = false;
+                }
+
             } catch (error) {
                 console.error("Init Error:", error);
                 showToast("Critical Dashboard Error: " + error.message);
@@ -3275,7 +3386,7 @@
                             <div class="grid grid-cols-3 gap-3">
                                 ${user.recent_watches.map(w => `
                                     <div class="glass p-2 rounded-lg relative aspect-[2/3] overflow-hidden group">
-                                        <img src="${w.poster_path ? `https://image.tmdb.org/t/p/w200${w.poster_path}` : 'https://via.placeholder.com/200x300'}" class="w-full h-full object-cover rounded">
+                                        <img src="${w.poster_path ? `https://image.tmdb.org/t/p/w200${w.poster_path}` : FALLBACK_POSTER}" class="w-full h-full object-cover rounded">
                                         <div class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity p-2 text-center">
                                             <span class="text-[10px] font-bold text-white line-clamp-2">${w.title}</span>
                                         </div>
@@ -3309,7 +3420,7 @@
                                 <div class="flex gap-2 flex-wrap justify-center sm:justify-start">
                                     ${(user.badges || []).map(b => `
                                     <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-lg border border-white/10" title="${b.name}">
-                                        ${b.icon.startsWith('http') || b.icon.length > 20 ? `<i data-lucide="${b.icon}" class="w-5 h-5 text-yellow-400"></i>` : b.icon}
+                                        ${b.icon.startsWith('http') ? `<img src="${b.icon}" class="w-5 h-5 rounded-full">` : (b.icon.length < 30 && /^[a-z0-9-]+$/.test(b.icon) ? `<i data-lucide="${b.icon}" class="w-5 h-5 text-yellow-400"></i>` : b.icon)}
                                     </div>
                                 `).join('')}
                                 </div>
@@ -3567,7 +3678,10 @@
 
                 if (viewName === 'analytics') {
                     loadRecs();
-                    loadSprint();
+                    if (!window.phase2ChartsLoaded && window.lastStats) {
+                        initPhase2Charts(window.lastStats);
+                        window.phase2ChartsLoaded = true;
+                    }
                 }
                 if (viewName === 'social') {
                     loadFeed();
@@ -3862,7 +3976,7 @@
             // For now, let's derive genres from History as it has more data usually.
 
             const allItems = [...(window.historyData || []), ...(window.watchlistData || [])];
-            console.log("DEBUG: renderGenrePills items:", allItems.length);
+            // console.log("DEBUG: renderGenrePills items:", allItems.length);
             const genres = new Set();
             allItems.forEach(i => {
                 if (i.genres) {
@@ -4564,29 +4678,8 @@
         // StoryManager.init(); // Moved to end
         // startAutoRefresh(); // Moved to end
         async function loadSprint() {
-            const res = await authFetch('/api/stats/sprint');
-            if (!res.ok) return;
-            const data = await res.json();
-
-            document.getElementById('sprint-hours').innerText = data.total_hours;
-            document.getElementById('sprint-count').innerText = data.total_count;
-            document.getElementById('sprint-minutes').innerText = data.total_minutes;
-
-            const list = document.getElementById('sprint-list');
-            if (data.items.length === 0) {
-                list.innerHTML = '<li class="text-slate-500 italic text-sm">No watching in last 14 days.</li>';
-                return;
-            }
-
-            list.innerHTML = data.items.map(i => `
-                <li class="flex items-center gap-3 p-2 hover:bg-white/5 rounded transition-colors group cursor-pointer" onclick="this.classList.toggle('opacity-50'); this.classList.toggle('line-through')">
-                    <div class="w-4 h-4 rounded-full border border-blue-500/50 flex items-center justify-center group-hover:bg-blue-500 transition-colors">
-                        <div class="w-2 h-2 bg-white rounded-full opacity-0 group-hover:opacity-100"></div>
-                    </div>
-                    <span class="text-sm text-slate-300 group-hover:text-white truncate flex-1">${i.title}</span>
-                    <span class="text-xs text-slate-600">${new Date(i.watched_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-                </li>
-            `).join('');
+            // Deprecated in Phase 2
+            return;
         }
         // --- Inbox Logic ---
         function openInbox() {
@@ -4984,6 +5077,51 @@
                 Message</button>
         </div>
     </div>
+    </div>
+
+    <!-- MOVIE ROULETTE MODAL -->
+    <div id="roulette-modal"
+        class="fixed inset-0 bg-black/95 hidden z-[70] flex flex-col items-center justify-center animate-in backdrop-blur-md">
+        <button onclick="document.getElementById('roulette-modal').classList.add('hidden')"
+            class="absolute top-4 right-4 text-slate-400 hover:text-white z-50">✕</button>
+
+        <div class="text-center mb-8">
+            <h2 class="text-4xl font-black text-white mb-2 tracking-tight flex items-center justify-center gap-3">
+                <i data-lucide="dices" class="w-8 h-8 text-indigo-400"></i> Movie Roulette
+            </h2>
+            <p class="text-slate-400">Can't decide? Let fate choose your next watch.</p>
+        </div>
+
+        <div
+            class="relative w-64 h-96 bg-slate-900 rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(99,102,241,0.2)] border-2 border-slate-700 mx-auto group">
+            <div id="roulette-spinner"
+                class="absolute w-full flex flex-col items-center transition-transform duration-[3000ms] cubic-bezier(0.1, 0.7, 0.1, 1)">
+                <!-- Posters injected here -->
+            </div>
+            <!-- Targeting reticle -->
+            <div
+                class="absolute inset-x-0 top-1/2 -mt-24 h-48 border-y-4 border-indigo-500 bg-indigo-500/10 pointer-events-none z-10 flex items-center justify-center">
+                <div class="w-full h-px bg-white/20 shadow-[0_0_10px_rgba(255,255,255,0.8)]"></div>
+            </div>
+
+            <!-- Winner Action Overlay -->
+            <div id="roulette-winner-actions"
+                class="absolute inset-0 bg-black/80 flex flex-col items-center justify-center opacity-0 pointer-events-none transition-opacity duration-500 z-20">
+                <h3 class="text-xl font-bold text-white mb-4 text-center px-4" id="roulette-winner-title">Title</h3>
+                <div class="flex gap-3">
+                    <button id="roulette-watch-btn"
+                        class="bg-emerald-500 hover:bg-emerald-400 text-white font-bold py-2 px-4 rounded-xl shadow-lg hover:scale-105 transition-all">
+                        <i data-lucide="play" class="w-4 h-4 inline-block mr-1"></i> Watch Now
+                    </button>
+                    <button onclick="startRoulette()"
+                        class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-xl shadow-lg hover:scale-105 transition-all">
+                        <i data-lucide="rotate-cw" class="w-4 h-4 inline-block mr-1"></i> Spin Again
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- PARTY ROOM MODAL -->
     <div id="party-room-modal"
         class="fixed inset-0 bg-black/95 hidden z-[60] flex flex-col items-center justify-center animate-in backdrop-blur-md">
@@ -5054,6 +5192,128 @@
                     </form>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- V3 TASTE MAKER ONBOARDING WIZARD -->
+    <style>
+        .wizard-step {
+            display: none;
+        }
+
+        .wizard-step.active {
+            display: flex;
+        }
+
+        .movie-select-card {
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid transparent;
+        }
+
+        .movie-select-card:hover {
+            transform: scale(1.05) translateY(-5px);
+            border-color: rgba(255, 255, 255, 0.2);
+            z-index: 10;
+        }
+
+        .movie-select-card.selected {
+            border-color: #6366f1;
+            box-shadow: 0 0 25px rgba(99, 102, 241, 0.6);
+            transform: scale(0.95);
+            z-index: 1;
+        }
+
+        .genre-select-pill {
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .genre-select-pill.selected {
+            background-color: #6366f1;
+            border-color: #6366f1;
+            color: white;
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.5);
+        }
+
+        .check-overlay {
+            transition: opacity 0.2s;
+        }
+    </style>
+
+    <div id="onboarding-wizard"
+        class="fixed inset-0 z-[9999] bg-[#050505]/95 backdrop-blur-xl hidden flex-col items-center justify-center p-6 text-white transition-opacity duration-500 overflow-hidden font-sans">
+
+        <!-- Premium Film Grain Overlay for Wizard -->
+        <div class="absolute inset-0 z-0 pointer-events-none opacity-20"
+            style="background-image: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px); background-size: 4px 4px; mix-blend-mode: overlay;">
+        </div>
+
+        <div class="max-w-5xl w-full z-10 relative">
+
+            <!-- STEP 1: Movie Selection -->
+            <div id="wizard-step-1" class="wizard-step active flex-col items-center w-full animate-up">
+                <span
+                    class="px-3 py-1 bg-white/10 rounded-full text-xs font-bold tracking-widest text-slate-300 mb-4 inline-block">STEP
+                    1 OF 2</span>
+                <h1
+                    class="text-5xl md:text-6xl font-black mb-3 text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 text-center tracking-tight">
+                    The Taste Maker</h1>
+                <p class="text-slate-400 mb-10 text-center text-lg max-w-2xl mx-auto">Pick 5 critically acclaimed films
+                    you absolutely love to calibrate your cinematic profile.</p>
+
+                <div id="wizard-movies-grid"
+                    class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 md:gap-6 mb-12 w-full max-h-[55vh] overflow-y-auto px-4 pb-4 custom-scrollbar">
+                    <!-- Populated dynamically by JS (initTasteMakerWizard) -->
+                </div>
+
+                <button id="wizard-btn-1" onclick="nextWizardStep(2)" disabled
+                    class="px-10 py-4 bg-white text-black font-black rounded-full disabled:opacity-40 disabled:cursor-not-allowed hover:scale-105 transition-all text-lg shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:shadow-[0_0_40px_rgba(255,255,255,0.4)] tracking-wide">
+                    Select 5 more
+                </button>
+            </div>
+
+            <!-- STEP 2: Genre Selection -->
+            <div id="wizard-step-2" class="wizard-step hidden flex-col items-center w-full">
+                <span
+                    class="px-3 py-1 bg-white/10 rounded-full text-xs font-bold tracking-widest text-slate-300 mb-4 inline-block">STEP
+                    2 OF 2</span>
+                <h1 class="text-5xl md:text-6xl font-black mb-3 text-white text-center tracking-tight">What's your vibe?
+                </h1>
+                <p class="text-slate-400 mb-12 text-center text-lg max-w-2xl mx-auto">Select at least 3 genres you
+                    gravitate towards to fine-tune our AI recommendations.</p>
+
+                <div id="wizard-genres-grid" class="flex flex-wrap justify-center gap-4 w-full max-w-3xl mb-16">
+                    <!-- Populated by JS -->
+                </div>
+
+                <div class="flex gap-4 items-center">
+                    <button onclick="nextWizardStep(1)"
+                        class="px-8 py-4 bg-transparent text-slate-400 font-bold hover:text-white transition-colors text-lg">
+                        ← Back
+                    </button>
+                    <button id="wizard-btn-2" onclick="nextWizardStep(3)" disabled
+                        class="px-10 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black rounded-full disabled:opacity-40 disabled:cursor-not-allowed hover:from-indigo-500 hover:to-purple-500 hover:scale-105 transition-all text-lg shadow-[0_0_30px_rgba(99,102,241,0.4)] tracking-wide">
+                        Select 3 more
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 3: Loading / Finalizing -->
+            <div id="wizard-step-3" class="wizard-step hidden flex-col items-center w-full justify-center h-[50vh]">
+                <div class="relative w-32 h-32 mb-8 flex items-center justify-center">
+                    <div class="absolute inset-0 rounded-full border-4 border-slate-800"></div>
+                    <div
+                        class="absolute inset-0 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin">
+                    </div>
+                    <i data-lucide="sparkles" class="w-10 h-10 text-indigo-400"></i>
+                </div>
+                <h2 class="text-4xl font-black mb-3 text-white tracking-tight">Generating Dashboard</h2>
+                <p id="wizard-loading-text" class="text-indigo-400 font-mono text-lg animate-pulse">Analyzing cinematic
+                    fingerprint...</p>
+            </div>
+
         </div>
     </div>
 
@@ -5147,7 +5407,7 @@
 
             wizardEl.style.display = 'flex';
 
-            const mainAppContent = document.getElementById('main-app-content');
+            const mainAppContent = document.getElementById('main-scroll-area');
             if (mainAppContent) mainAppContent.classList.add('blur-sm', 'pointer-events-none');
 
             // Fetch popular movies for Step 1
@@ -5162,7 +5422,7 @@
 
                 let html = '';
                 data.results.slice(0, 15).forEach((movie, i) => {
-                    const poster = movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : 'https://via.placeholder.com/342x513';
+                    const poster = movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : FALLBACK_POSTER;
                     html += `
                         <div onclick="toggleWizardMovie(${movie.id}, this)" class="movie-select-card relative rounded-lg overflow-hidden aspect-[2/3] animate-up delay-${(i % 5) * 100}">
                             <img src="${poster}" class="w-full h-full object-cover">
@@ -5239,10 +5499,10 @@
                 // 1. Add watched movies
                 for (let i = 0; i < wizardSelectedMovies.length; i++) {
                     textEl.innerText = `Logging movie ${i + 1} of ${wizardSelectedMovies.length}...`;
-                    await authFetch(`/api/add`, {
+                    await authFetch(`/api/log`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ tmdb_id: wizardSelectedMovies[i], media_type: 'movie', status: 'watched' })
+                        body: JSON.stringify({ title: 'Onboarding Selection', tmdb_id: wizardSelectedMovies[i], media_type: 'movie', status: 'watched', rating: 5 })
                     });
                 }
 
@@ -5290,7 +5550,7 @@
             setTimeout(() => {
                 if (wizard) wizard.style.display = 'none';
 
-                const mainAppContent = document.getElementById('main-app-content');
+                const mainAppContent = document.getElementById('main-scroll-area');
                 if (mainAppContent) {
                     mainAppContent.classList.remove('blur-sm', 'pointer-events-none');
                     mainAppContent.style.display = 'block';
@@ -5395,7 +5655,7 @@
                     grid.innerHTML = data.map(item => {
                         // Re-use renderCard, but these aren't in watchlist/history yet
                         // Need special handling or just use the UI template
-                        const img = item.poster_path ? `https://image.tmdb.org/t/p/w342${item.poster_path}` : 'https://via.placeholder.com/200x300';
+                        const img = item.poster_path ? `https://image.tmdb.org/t/p/w342${item.poster_path}` : FALLBACK_POSTER;
                         return `
                             <div class="glass rounded-xl overflow-hidden relative group animate-up cursor-pointer" onclick="window.open('https://google.com/search?q=${item.title} movie', '_blank')">
                                 <img src="${img}" class="w-full aspect-[2/3] object-cover group-hover:scale-105 transition-transform duration-500">
@@ -5431,7 +5691,7 @@
                 const grid = document.getElementById('when-to-watch-grid');
                 if (data.results && data.results.length > 0) {
                     grid.innerHTML = data.results.map(item => {
-                        const img = item.poster_path ? `https://image.tmdb.org/t/p/w342${item.poster_path}` : 'https://via.placeholder.com/200x300';
+                        const img = item.poster_path ? `https://image.tmdb.org/t/p/w342${item.poster_path}` : FALLBACK_POSTER;
                         return `
                             <div class="glass rounded-xl overflow-hidden relative group animate-up" onclick="window.open('https://google.com/search?q=${item.title} movie', '_blank')">
                                 <img src="${img}" class="w-full aspect-[2/3] object-cover group-hover:scale-105 transition-transform duration-500">
@@ -5589,6 +5849,329 @@
 
     </div> <!-- END MAIN CONTENT AREA WRAPPER -->
     </div> <!-- END MAIN LAYOUT FLEX WRAPPER -->
+    <!-- YEARLY WRAPPED MODAL OVERLAY -->
+    <div id="wrapped-modal"
+        class="fixed inset-0 z-[100] hidden bg-black text-white flex flex-col justify-center items-center overflow-hidden">
+        <audio id="wrapped-audio" loop>
+            <!-- A placeholder cinematic track -->
+            <source src="https://assets.mixkit.co/music/preview/mixkit-cinematic-minimal-technology-144.mp3"
+                type="audio/mpeg">
+        </audio>
+
+        <button onclick="closeWrapped()"
+            class="absolute top-8 right-8 text-white/50 hover:text-white z-50 p-2 rounded-full bg-white/10 backdrop-blur-md">
+            <i data-lucide="x" class="w-6 h-6"></i>
+        </button>
+
+        <!-- Story Progress Bars -->
+        <div id="wrapped-progress-container" class="absolute top-4 left-4 right-4 flex gap-2 z-50 max-w-lg mx-auto">
+            <!-- Progress bars injected dynamically via JS -->
+        </div>
+
+        <div id="wrapped-slides-container"
+            class="relative w-full h-full md:max-w-lg md:aspect-[9/16] md:h-auto bg-slate-900 md:rounded-3xl overflow-hidden shadow-2xl shadow-indigo-500/20 cursor-pointer"
+            onclick="nextWrappedSlide()">
+            <!-- Slides Injected Here -->
+            <div class="absolute inset-0 flex items-center justify-center bg-black">
+                <div class="animate-spin w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function initPhase2Charts(stats) {
+            // 1. World Map
+            if (stats.country_distribution && window.jsVectorMap) {
+                document.getElementById('world-map-container').innerHTML = '<div id="vmap" style="width: 100%; height: 100%;"></div>';
+
+                const filteredCountries = Object.fromEntries(
+                    Object.entries(stats.country_distribution).filter(([key]) => key && key.trim() !== "")
+                );
+
+                // Highlight top country
+                const topC = Object.entries(filteredCountries).sort((a, b) => b[1] - a[1])[0];
+                if (topC) document.getElementById('top-country-badge').innerText = `Top: ${topC[0]} (${topC[1]})`;
+
+                try {
+                    new jsVectorMap({
+                        selector: '#vmap',
+                        map: 'world',
+                        backgroundColor: 'transparent',
+                        regionStyle: {
+                            initial: { fill: '#1e293b', fillOpacity: 1, stroke: 'none', strokeWidth: 0, strokeOpacity: 1 },
+                            hover: { fillOpacity: 0.8, cursor: 'pointer' }
+                        },
+                        series: {
+                            regions: [{
+                                attribute: 'fill',
+                                scale: ['#312e81', '#4f46e5', '#818cf8', '#c7d2fe'],
+                                values: filteredCountries,
+                                min: 0
+                            }]
+                        },
+                        onRegionTooltipShow(event, tooltip, code) {
+                            const count = filteredCountries[code] || 0;
+                            tooltip.text(
+                                `<div class="text-sm font-bold bg-slate-800 p-2 rounded">${tooltip.text()} <span class="bg-indigo-500 px-2 py-0.5 rounded text-white ml-2">${count}</span></div>`,
+                                true
+                            )
+                        }
+                    });
+                } catch (e) { console.error("Map rendering error", e); }
+            }
+
+            // 2. Critic Curve Scatterplot
+            const loader = document.getElementById('scatter-loader');
+            if (loader) loader.classList.remove('hidden');
+
+            try {
+                const res = await authFetch('/api/analytics/scatter');
+                if (res && res.ok) {
+                    const data = await res.json();
+                    if (data.persona) document.getElementById('stat-persona').innerText = data.persona;
+
+                    const scatterData = data.scatter.map(d => ({
+                        x: d.popularity,
+                        y: d.user_rating,
+                        title: d.title,
+                        img: d.poster ? `https://image.tmdb.org/t/p/w92${d.poster}` : null
+                    }));
+
+                    const ctx = document.getElementById('scatterChart');
+                    if (Chart.getChart(ctx)) Chart.getChart(ctx).destroy();
+
+                    new Chart(ctx, {
+                        type: 'scatter',
+                        data: {
+                            datasets: [{
+                                label: 'Your Ratings',
+                                data: scatterData,
+                                backgroundColor: 'rgba(99, 102, 241, 0.6)',
+                                borderColor: '#818cf8',
+                                pointRadius: 6,
+                                pointHoverRadius: 8
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                x: { title: { display: true, text: 'Global Popularity (TMDB)', color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } },
+                                y: { title: { display: true, text: 'Your Rating (1-5)', color: '#64748b' }, min: 0, max: 5, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', stepSize: 1 } }
+                            },
+                            plugins: {
+                                tooltip: {
+                                    callbacks: {
+                                        label: function (ctx) {
+                                            return `${ctx.raw.title} (You: ${ctx.raw.y}, Pop: ${Math.round(ctx.raw.x)})`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error("Scatter plot error", e);
+            } finally {
+                if (loader) loader.classList.add('hidden');
+            }
+        }
+
+        // 3. Wrapped Seasonality Logic
+        const currentMonth = new Date().getMonth(); // 0 is Jan, 10 is Nov, 11 is Dec
+        const isWrappedSeason = (currentMonth === 10 || currentMonth === 11 || currentMonth === 0);
+
+        if (!isWrappedSeason) {
+            const btnWrap = document.getElementById('btn-launch-wrapped');
+            if (btnWrap) btnWrap.style.display = 'none';
+            const selectTime = document.getElementById('analytics-time-range');
+            if (selectTime) selectTime.style.display = 'none';
+        }
+
+        let wrappedInterval;
+        let currentSlide = 0;
+
+        async function launchWrapped() {
+            const modal = document.getElementById('wrapped-modal');
+            const container = document.getElementById('wrapped-slides-container');
+            const audio = document.getElementById('wrapped-audio');
+
+            modal.classList.remove('hidden');
+            container.innerHTML = `<div class="absolute inset-0 flex items-center justify-center bg-black"><div class="animate-spin w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full"></div></div>`;
+
+            document.body.style.overflow = 'hidden';
+
+            try {
+                audio.volume = 0.5;
+                audio.play().catch(e => console.log("Audio autoplay prevented", e));
+            } catch (e) { }
+
+            const year = document.getElementById('analytics-time-range').value === '2025' ? 2025 : new Date().getFullYear();
+            const res = await authFetch(`/api/analytics/wrapped/${year}`);
+
+            if (!res || !res.ok) {
+                container.innerHTML = `<div class="p-8 text-center"><h2 class="text-2xl font-bold mb-4">No data for ${year}</h2><button onclick="closeWrapped()" class="bg-indigo-600 px-4 py-2 rounded-lg">Close</button></div>`;
+                return;
+            }
+
+            const data = await res.json();
+
+            if (data.error) {
+                container.innerHTML = `
+                <div class="p-8 text-center text-white flex flex-col items-center justify-center h-full">
+                    <i data-lucide="calendar-x" class="w-16 h-16 text-slate-500 mb-6"></i>
+                    <h2 class="text-3xl font-black mb-4">No data for ${year} yet!</h2>
+                    <p class="text-slate-400 mb-8 max-w-sm">You haven't logged enough movies this year. But don't worry, you can select <strong class="text-white">2025 Year in Review</strong> from the dropdown next to the button to view your past history!</p>
+                    <button onclick="closeWrapped()" class="bg-indigo-600 hover:bg-indigo-500 transition-colors px-6 py-3 rounded-full font-bold shadow-lg shadow-indigo-500/25">Return to Reality</button>
+                </div>`;
+                if (window.lucide) lucide.createIcons();
+                return;
+            }
+
+            const slides = [
+                /* Slide 1: Welcome */
+                `
+            <div class="absolute inset-0 bg-gradient-to-br from-indigo-900 to-black p-8 flex flex-col justify-center items-center text-center animate-up">
+                <h3 class="text-indigo-400 font-bold tracking-widest uppercase mb-4 text-sm">Your ${year} in Film</h3>
+                <h2 class="text-6xl font-black text-white mb-6 leading-tight">${data.total_minutes.toLocaleString()}<br><span class="text-2xl text-slate-400">Minutes Played</span></h2>
+                <p class="text-xl text-slate-300 italic">"${data.commentary[0] || 'A solid year of cinema.'}"</p>
+            </div>
+            `,
+                /* Slide 2: Top Genres */
+                `
+            <div class="absolute inset-0 bg-gradient-to-tr from-purple-900 to-black p-8 flex flex-col justify-center items-center text-center animate-up">
+                <h3 class="text-purple-400 font-bold tracking-widest uppercase mb-4 text-sm">Top Genres</h3>
+                <div class="space-y-6 w-full max-w-xs">
+                    ${data.top_genres.map((g, i) => `
+                        <div class="bg-white/10 rounded-xl p-4 flex justify-between items-center backdrop-blur-md border border-white/5 shadow-2xl">
+                            <span class="text-2xl font-black text-white">#${i + 1}</span>
+                            <span class="text-xl font-bold text-slate-200">${g[0]}</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <p class="text-lg text-slate-300 italic mt-8">"${data.commentary[1] || 'Eclectic taste indeed.'}"</p>
+            </div>
+            `,
+                /* Slide 3: Screen Format Split */
+                `
+            <div class="absolute inset-0 bg-gradient-to-bl from-rose-900 to-black p-8 flex flex-col justify-center items-center text-center animate-up">
+                <h3 class="text-rose-400 font-bold tracking-widest uppercase mb-4 text-sm">The Screen Split</h3>
+                <div class="flex gap-4 mb-8">
+                    <div class="bg-black/40 p-6 rounded-2xl flex-1 border border-white/10">
+                        <div class="text-4xl font-black text-white mb-2">${data.movies_count}</div>
+                        <div class="text-xs text-slate-400 uppercase tracking-widest">Movies</div>
+                    </div>
+                    <div class="bg-black/40 p-6 rounded-2xl flex-1 border border-white/10">
+                        <div class="text-4xl font-black text-white mb-2">${data.tv_count}</div>
+                        <div class="text-xs text-slate-400 uppercase tracking-widest">TV Seasons</div>
+                    </div>
+                </div>
+            </div>
+            `,
+            ];
+
+            if (data.longest_item) {
+                slides.push(`
+                <div class="absolute inset-0 bg-gradient-to-tr from-orange-900 to-black p-8 flex flex-col justify-center items-center text-center animate-up">
+                    <h3 class="text-orange-400 font-bold tracking-widest uppercase mb-4 text-sm">Longest Session</h3>
+                    ${data.longest_item.poster ? `<img src="${data.longest_item.poster}" class="w-32 h-48 object-cover rounded-xl border border-white/20 shadow-2xl mb-8">` : ''}
+                    <h2 class="text-3xl font-black text-white mb-2 leading-tight">${data.longest_item.title}</h2>
+                    <p class="text-xl text-slate-300">A grueling ${data.longest_item.runtime} minutes.</p>
+                </div>
+                `);
+            }
+
+            if (data.top_actors && data.top_actors.length > 0) {
+                slides.push(`
+                <div class="absolute inset-0 bg-gradient-to-bl from-blue-900 to-black p-8 flex flex-col justify-center items-center text-center animate-up">
+                    <h3 class="text-blue-400 font-bold tracking-widest uppercase mb-4 text-sm">Most Watched Star</h3>
+                    <div class="w-24 h-24 rounded-full bg-blue-500/20 flex flex-col items-center justify-center border border-blue-500/50 mb-6 shadow-[0_0_50px_rgba(59,130,246,0.3)]">
+                        <i data-lucide="star" class="w-10 h-10 text-blue-400"></i>
+                    </div>
+                    <h2 class="text-4xl font-black text-white mb-2 leading-tight">${data.top_actors[0][0]}</h2>
+                    <p class="text-slate-300">Appeared in ${data.top_actors[0][1]} of your watches.</p>
+                </div>
+                `);
+            }
+
+            slides.push(`
+            <div class="absolute inset-0 bg-gradient-to-bl from-emerald-900 to-black p-8 flex flex-col justify-center items-center text-center animate-up">
+                <div class="w-32 h-32 rounded-full bg-emerald-500/20 flex items-center justify-center mb-8 border border-emerald-500/50 shadow-[0_0_50px_rgba(16,185,129,0.3)]">
+                    <i data-lucide="crown" class="w-16 h-16 text-emerald-400"></i>
+                </div>
+                <h3 class="text-emerald-400 font-bold tracking-widest uppercase mb-4 text-sm">Global Rank</h3>
+                <h2 class="text-4xl font-black text-white mb-4 line-clamp-2">${data.ranking}</h2>
+                <p class="text-slate-400 max-w-xs mx-auto">You've explored more cinematic worlds than most. Ready for what's next?</p>
+            </div>
+            `);
+
+            const pbContainer = document.getElementById('wrapped-progress-container');
+            if (pbContainer) {
+                pbContainer.innerHTML = slides.map((_, i) => `
+                    <div id="wrapped-progress-${i + 1}" class="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
+                        <div class="h-full bg-white w-0"></div>
+                    </div>
+                `).join('');
+            }
+
+            window.wrappedSlides = slides;
+            currentSlide = 0;
+            showSlide(0);
+        }
+
+        function showSlide(index) {
+            if (index >= window.wrappedSlides.length) {
+                closeWrapped();
+                return;
+            }
+
+            const container = document.getElementById('wrapped-slides-container');
+            container.innerHTML = window.wrappedSlides[index];
+            if (window.lucide) lucide.createIcons();
+
+            for (let i = 1; i <= window.wrappedSlides.length; i++) {
+                const barContainer = document.getElementById(`wrapped-progress-${i}`);
+                if (!barContainer) continue;
+                const bar = barContainer.querySelector('div');
+                // Remove transition for instant reset
+                bar.style.transition = 'none';
+                bar.style.width = i <= index ? '100%' : '0%';
+            }
+
+            setTimeout(() => {
+                const currentBar = document.getElementById(`wrapped-progress-${index + 1}`)?.querySelector('div');
+                if (currentBar) {
+                    currentBar.style.transition = 'width 5000ms linear';
+                    currentBar.style.width = '100%';
+                }
+            }, 50);
+
+            clearTimeout(wrappedInterval);
+            wrappedInterval = setTimeout(() => {
+                nextWrappedSlide();
+            }, 5000);
+        }
+
+        function nextWrappedSlide() {
+            currentSlide++;
+            showSlide(currentSlide);
+        }
+
+        function closeWrapped() {
+            clearTimeout(wrappedInterval);
+            document.getElementById('wrapped-modal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+            try {
+                document.getElementById('wrapped-audio').pause();
+                document.getElementById('wrapped-audio').currentTime = 0;
+            } catch (e) { }
+        }
+
+        function loadAnalytics() {
+            init(); // Refresh data grid based on newly selected value
+        }
+    </script>
 </body>
 
 </html>

@@ -4,81 +4,324 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Watched - Login</title>
+    <title>Watched - The Ultimate Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
     <style>
-        body {
-            background-color: #0f172a;
-            color: #e2e8f0;
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
         }
 
-        .glass {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+        /* Hide scrollbar for IE, Edge and Firefox */
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            /* IE and Edge */
+            scrollbar-width: none;
+            /* Firefox */
+        }
+
+        body {
+            background-color: #9ba6b5;
+            /* Silvery outer background matching video */
+            background-image: radial-gradient(circle at 50% 0%, #b8c1ca 0%, #7d8b9b 100%);
+        }
+
+        .glass-panel {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 40px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .glass-panel-dark {
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.1));
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Pulse Animation for Cold Start */
+        @keyframes subtlePulse {
+            0% {
+                opacity: 0.6;
+                transform: scale(0.98);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            100% {
+                opacity: 0.6;
+                transform: scale(0.98);
+            }
+        }
+
+        .animate-subtle-pulse {
+            animation: subtlePulse 3s ease-in-out infinite;
+        }
+
+        .fade-out {
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.8s ease-out, visibility 0.8s;
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 1s ease-out forwards;
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
     </style>
 </head>
 
-<body class="h-screen flex items-center justify-center relative overflow-hidden">
-    <!-- Background Blobs -->
+<body
+    class="h-screen w-screen p-3 sm:p-6 md:p-10 overflow-hidden flex items-center justify-center font-sans antialiased text-slate-300">
+
+    <!-- The "iPad/Window" Frame -->
     <div
-        class="absolute top-0 left-1/4 w-96 h-96 bg-purple-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob">
-    </div>
-    <div
-        class="absolute bottom-0 right-1/4 w-96 h-96 bg-indigo-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000">
-    </div>
+        class="relative w-full h-full max-w-[1800px] rounded-[2rem] sm:rounded-[3rem] overflow-hidden shadow-[0_40px_80px_rgba(0,0,0,0.5)] border border-white/50 ring-[6px] ring-white/20 flex flex-col bg-black">
 
-    <div class="glass p-10 rounded-3xl w-full max-w-md text-center z-10 shadow-2xl">
-        <h1
-            class="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 mb-2">
-            Watched</h1>
-        <p class="text-slate-400 mb-8">Your ultimate tracking companion.</p>
-
-        <div id="g_id_onload" data-client_id="725965614246-s6r1sh4m1i9mocm8pa5ag1e67asd2ev3.apps.googleusercontent.com"
-            data-callback="handleCredentialResponse" data-auto_prompt="false">
-        </div>
-        <div class="g_id_signin flex justify-center" data-type="standard" data-size="large" data-theme="filled_black"
-            data-text="sign_in_with" data-shape="pill" data-logo_alignment="left">
+        <!-- Background Image fixed inside the frame -->
+        <div class="absolute inset-0 z-0">
+            <!-- Using a cinematic Unsplash image to mimic the vast scenery -->
+            <img src="https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&q=80&w=2532"
+                class="w-full h-full object-cover">
+            <div class="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/80"></div>
         </div>
 
-        <!-- Dev Login (Localhost Only) -->
-        <div id="dev-login-container" class="hidden mt-4">
-            <button onclick="devLogin()"
-                class="bg-slate-700 hover:bg-slate-600 text-white px-6 py-2 rounded-full font-bold text-sm transition-colors border border-slate-500">
-                🛠️ Dev Login (Localhost)
-            </button>
+        <!-- COLD START LOADING SCREEN (Inside the frame) -->
+        <div id="loading-screen"
+            class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-xl transition-opacity duration-1000">
+            <div class="animate-subtle-pulse flex flex-col items-center">
+                <div
+                    class="w-16 h-16 mb-6 rounded-2xl bg-white/10 border border-white/20 p-[2px] flex items-center justify-center">
+                    <i data-lucide="zap" class="w-8 h-8 text-white"></i>
+                </div>
+                <h2 class="text-2xl font-black text-white tracking-widest uppercase mb-2">Watched.</h2>
+                <p class="text-white/50 text-sm tracking-widest uppercase animate-pulse">Waking up servers...</p>
+            </div>
         </div>
 
-        <p class="mt-8 text-xs text-slate-500">By proceeding, you agree to join the coolest leaderboard in town.</p>
+        <!-- Scrollable Content Area -->
+        <div id="main-content"
+            class="relative z-10 w-full h-full overflow-y-auto no-scrollbar scroll-smooth opacity-0 transition-opacity duration-1000">
+
+            <!-- Navbar -->
+            <nav class="absolute top-0 w-full p-8 md:px-12 flex justify-between items-center z-20">
+                <div class="font-black text-2xl tracking-tighter text-white">W.</div>
+                <div class="flex items-center gap-6">
+                    <span class="text-white/70 text-sm font-semibold hidden md:block">Start your sync and get automated
+                        tracking.</span>
+                    <button onclick="document.getElementById('login-section').scrollIntoView({behavior: 'smooth'})"
+                        class="text-xs tracking-widest uppercase font-bold bg-white text-black px-6 py-3 rounded-full hover:bg-slate-200 transition-colors">Sign
+                        In <span aria-hidden="true" class="ml-1">&rarr;</span></button>
+                </div>
+            </nav>
+
+            <!-- Hero Section (Mimicking Frame 6: "VACUUM SUPPLY") -->
+            <section class="min-h-screen flex flex-col items-center justify-center text-center px-4 pt-16">
+                <p class="text-white/70 tracking-[0.4em] text-xs md:text-sm font-bold uppercase mb-6 fade-in-up"
+                    style="animation-delay: 0.2s;">What We Do</p>
+                <!-- mix-blend-overlay or soft-light for the huge typography effect over the background -->
+                <h1 class="text-[4rem] sm:text-[8rem] md:text-[11rem] lg:text-[13rem] font-black text-white tracking-tighter leading-[0.85] fade-in-up uppercase"
+                    style="animation-delay: 0.4s;">
+                    WATCHLIST<br>2025
+                </h1>
+                <p class="text-white/60 mt-8 max-w-lg text-lg fade-in-up font-medium" style="animation-delay: 0.6s;">
+                    Watched is a premier cinematic analytics distributor.<br>Track, discover, and analyze.
+                </p>
+                <button onclick="document.getElementById('features-section').scrollIntoView({behavior: 'smooth'})"
+                    class="mt-8 text-white/50 hover:text-white transition-colors flex items-center gap-2 fade-in-up"
+                    style="animation-delay: 0.8s;">
+                    <span class="text-sm font-bold tracking-widest uppercase">Learn More</span>
+                    <i data-lucide="arrow-down-right" class="w-4 h-4"></i>
+                </button>
+            </section>
+
+            <!-- Features Section (Mimicking Frame 9: "From harvest to your table") -->
+            <section id="features-section" class="min-h-screen flex flex-col justify-center px-6 md:px-20 py-24">
+                <div class="mb-16">
+                    <p class="text-white/70 tracking-[0.3em] text-xs font-bold uppercase mb-4 fade-in-up">The Process
+                    </p>
+                    <h2 class="text-4xl md:text-7xl font-bold text-white tracking-tight leading-[1.1] fade-in-up"
+                        style="animation-delay: 0.2s;">From screen<br>to your profile</h2>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+
+                    <!-- Card 1 -->
+                    <div class="glass-panel text-white p-8 rounded-3xl h-80 flex flex-col justify-between hover:-translate-y-2 transition-transform duration-500 fade-in-up"
+                        style="animation-delay: 0.2s;">
+                        <span class="text-xs font-bold font-mono text-white/50">01</span>
+                        <div>
+                            <h3 class="text-2xl font-bold mb-4">Discover</h3>
+                            <p class="text-sm text-white/70 leading-relaxed font-medium">Our AI partners directly with
+                                your taste profile to ensure the highest quality movie recommendations at origin.</p>
+                        </div>
+                    </div>
+
+                    <!-- Card 2 -->
+                    <div class="glass-panel text-white p-8 rounded-3xl h-80 flex flex-col justify-between hover:-translate-y-2 transition-transform duration-500 fade-in-up"
+                        style="animation-delay: 0.3s;">
+                        <span class="text-xs font-bold font-mono text-white/50">02</span>
+                        <div>
+                            <h3 class="text-2xl font-bold mb-4">Track</h3>
+                            <p class="text-sm text-white/70 leading-relaxed font-medium">Your watch history is securely
+                                sealed within hours of viewing using our proprietary data preservation technology.</p>
+                        </div>
+                    </div>
+
+                    <!-- Card 3 -->
+                    <div class="glass-panel text-white p-8 rounded-3xl h-80 flex flex-col justify-between hover:-translate-y-2 transition-transform duration-500 fade-in-up"
+                        style="animation-delay: 0.4s;">
+                        <span class="text-xs font-bold font-mono text-white/50">03</span>
+                        <div>
+                            <h3 class="text-2xl font-bold mb-4">Analyze</h3>
+                            <p class="text-sm text-white/70 leading-relaxed font-medium">Data-chain logistics ensure
+                                deep analytics integrity from the database directly to your visual dashboard.</p>
+                        </div>
+                    </div>
+
+                    <!-- Card 4 -->
+                    <div class="glass-panel-dark text-white p-8 rounded-3xl h-80 flex flex-col justify-between hover:-translate-y-2 transition-transform duration-500 fade-in-up"
+                        style="animation-delay: 0.5s;">
+                        <span class="text-xs font-bold font-mono text-white/50">04</span>
+                        <div>
+                            <h3 class="text-2xl font-bold mb-4">Socialize</h3>
+                            <p class="text-sm text-white/70 leading-relaxed font-medium">Open your app and experience a
+                                curated feed that tastes like true community.</p>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- Login / Trust Section (Mimicking Frame 3) -->
+            <section id="login-section"
+                class="min-h-[80vh] flex flex-col items-center justify-center p-6 md:p-20 relative">
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-5xl">
+
+                    <!-- Trust Card -->
+                    <div class="glass-panel p-10 rounded-3xl flex flex-col justify-between text-white shadow-2xl">
+                        <div>
+                            <div class="flex -space-x-3 mb-6">
+                                <img class="w-10 h-10 rounded-full border-2 border-white/20"
+                                    src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80">
+                                <img class="w-10 h-10 rounded-full border-2 border-white/20"
+                                    src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=100&q=80">
+                                <img class="w-10 h-10 rounded-full border-2 border-white/20"
+                                    src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80">
+                            </div>
+                            <h3 class="text-4xl font-bold mb-2">15K+</h3>
+                            <p class="text-sm text-white/70">Cinephiles trusting our tracking tech</p>
+                        </div>
+                        <div class="mt-12 flex items-center gap-2 text-xs text-white/50">
+                            <i data-lucide="check" class="w-4 h-4"></i>
+                            Trusted by industry leaders
+                        </div>
+                    </div>
+
+                    <!-- Auth Card -->
+                    <div
+                        class="glass-panel p-10 rounded-3xl flex flex-col justify-center text-white relative overflow-hidden shadow-2xl">
+                        <h3 class="text-3xl font-bold mb-4">Precision<br>watch tracking</h3>
+                        <p class="text-sm text-white/50 mb-10">(04%) Taste failure rate</p>
+
+                        <!-- Google Auth -->
+                        <div id="g_id_onload"
+                            data-client_id="725965614246-s6r1sh4m1i9mocm8pa5ag1e67asd2ev3.apps.googleusercontent.com"
+                            data-callback="handleCredentialResponse" data-auto_prompt="false">
+                        </div>
+                        <div class="g_id_signin mb-6" data-type="standard" data-size="large" data-theme="filled_black"
+                            data-text="sign_in_with" data-shape="rectangular" data-logo_alignment="left">
+                        </div>
+
+                        <!-- Dev Login -->
+                        <div id="dev-login-container" class="hidden mt-4">
+                            <button onclick="devLogin()"
+                                class="w-full bg-white/10 hover:bg-white/20 text-white py-3 rounded-lg font-bold text-sm transition-colors border border-white/20 flex justify-center items-center gap-2">
+                                <i data-lucide="terminal" class="w-4 h-4 text-white"></i> Dev Login (Localhost)
+                            </button>
+                        </div>
+
+                        <a href="#" class="mt-8 text-xs font-bold text-white flex items-center gap-1 hover:underline">
+                            Learn how it works <i data-lucide="arrow-up-right" class="w-3 h-3"></i>
+                        </a>
+                    </div>
+                </div>
+
+            </section>
+        </div>
     </div>
 
+    <!-- Logic -->
     <script>
-        // Check for Localhost
+        lucide.createIcons();
+
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
             document.getElementById('dev-login-container').classList.remove('hidden');
         }
 
+        async function wakeUpBackend() {
+            const loadingScreen = document.getElementById('loading-screen');
+            const mainContent = document.getElementById('main-content');
+
+            const minLoadTime = new Promise(resolve => setTimeout(resolve, 1500));
+
+            const pingBackend = fetch('/api/health')
+                .then(res => res.ok ? true : Promise.reject('Not OK'))
+                .catch(() => false);
+
+            await minLoadTime;
+
+            let isAwake = await pingBackend;
+            while (!isAwake) {
+                console.log("Backend still waking up... retrying in 2s");
+                await new Promise(r => setTimeout(r, 2000));
+                isAwake = await fetch('/api/health')
+                    .then(res => res.ok)
+                    .catch(() => false);
+            }
+
+            loadingScreen.classList.add('fade-out');
+            setTimeout(() => {
+                loadingScreen.style.display = 'none';
+                mainContent.classList.remove('opacity-0');
+            }, 800);
+        }
+
+        wakeUpBackend();
+
         function devLogin() {
             localStorage.setItem('access_token', 'dev');
-            // Mock User Info
             const mockUser = {
-                id: 1, // Assume admin/dev user ID 1 exists
+                id: 1,
                 name: "Dev User",
                 picture: "",
                 email: "dev@local.host"
             };
             localStorage.setItem('user_info', JSON.stringify(mockUser));
-            document.cookie = `access_token=dev; path=/; max-age=86400; SameSite=Lax`; // Lax for local
+            document.cookie = `access_token=dev; path=/; max-age=86400; SameSite=Lax`;
             window.location.href = '/dashboard.html';
         }
 
         async function handleCredentialResponse(response) {
             console.log("Encoded JWT ID token: " + response.credential);
-
             try {
-                // Exchange Google Token for App Token
                 const res = await fetch('/api/auth/google', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -89,10 +332,7 @@
                     const data = await res.json();
                     localStorage.setItem('access_token', data.access_token);
                     localStorage.setItem('user_info', JSON.stringify(data.user));
-
-                    // Set Cookie for Extension
                     document.cookie = `access_token=${data.access_token}; path=/; max-age=86400; SameSite=None; Secure`;
-
                     window.location.href = '/dashboard.html';
                 } else {
                     alert('Login failed. Please try again.');

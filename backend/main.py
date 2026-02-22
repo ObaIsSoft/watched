@@ -15,6 +15,7 @@ import csv
 import io
 import logging
 import json
+import asyncio
 from fastapi.responses import StreamingResponse
 # Force print for debugging
 print("Logger initialized")
@@ -100,6 +101,10 @@ class User(Base):
 # --- Database Setup & Migration ---
 
 app = FastAPI()
+
+@app.get("/api/health")
+def health_check():
+    return {"status": "ok"}
 
 # Allow CORS for Extension and Frontend
 app.add_middleware(
@@ -933,6 +938,7 @@ def read_users_me(current_user: User = Depends(get_current_user)):
         "level": current_user.level,
         "current_streak": current_user.current_streak,
         "is_public": current_user.is_public,
+        "has_completed_onboarding": current_user.has_completed_onboarding,
         "badges": badges
     }
 
@@ -1999,6 +2005,7 @@ def get_stats(db: Session = Depends(get_db), current_user: User = Depends(get_cu
         "top_keywords": top_keywords,
         "monthly_activity": sorted_activity,
         "decade_distribution": sorted_decades,
+        "country_distribution": dict(country_count),
         "trivia": trivia,
         "top_month": top_month[0] if top_month else ("None", 0),
         "top_day": top_day[0] if top_day else ("None", 0)
@@ -2350,8 +2357,14 @@ async def get_recommendations(db: Session = Depends(get_db), current_user: User 
              
         final_list.append(rec_item)
 
+    import random
     final_list.sort(key=lambda x: x['match_score'], reverse=True)
-    return final_list[:18]
+    
+    # Take top 30 candidates, shuffle them, and return 18 for variety on refresh
+    top_candidates = final_list[:30]
+    random.shuffle(top_candidates)
+    
+    return top_candidates[:18]
 
 async def fetch_trending_content():
     async with httpx.AsyncClient() as client:
@@ -3131,6 +3144,145 @@ def block_item(tmdb_id: int, db: Session = Depends(get_db), current_user: User =
     
     db.commit()
     return {"status": "blocked"}
+
+@app.get("/api/analytics/scatter")
+async def get_scatter_data(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # Returns the data for the Rating vs Popularity scatterplot (Critic Curve)
+    rated_items = db.query(WatchHistory).filter(WatchHistory.user_id == current_user.id, WatchHistory.rating > 0).all()
+    
+    async def fetch_stats(client, item):
+        url = f"https://api.themoviedb.org/3/{item.media_type}/{item.tmdb_id}"
+        try:
+            res = await client.get(url, params={"api_key": TMDB_API_KEY})
+            if res.status_code == 200:
+                tmdb_data = res.json()
+                return {
+                    "id": item.tmdb_id,
+                    "title": item.title,
+                    "user_rating": item.rating,
+                    "tmdb_rating": tmdb_data.get("vote_average", 0),
+                    "popularity": tmdb_data.get("popularity", 0),
+                    "poster": item.poster_path
+                }
+        except:
+            pass
+        return None
+
+    async with httpx.AsyncClient() as client:
+        tasks = [fetch_stats(client, item) for item in rated_items]
+        results = await asyncio.gather(*tasks)
+        
+    data = [r for r in results if r]
+    
+    # Calculate Critic Persona based on slope/differential
+    persona = "The Neutralist"
+    diff_sum = 0
+    if len(data) > 0:
+        for d in data:
+            # TMDB ratings are out of 10, user is out of 5
+            norm_tmdb = d['tmdb_rating'] / 2.0
+            # Negative diff means user rated lower than TMDB
+            diff_sum += (d['user_rating'] - norm_tmdb)
+            
+        avg_diff = diff_sum / len(data)
+        if avg_diff < -0.8: persona = "The Harsh Critic"
+        elif avg_diff < -0.3: persona = "The Skeptic"
+        elif avg_diff > 0.8: persona = "The Enthusiast"
+        elif avg_diff > 0.3: persona = "The Crowd Pleaser"
+        
+    return {"scatter": data, "persona": persona}
+
+@app.get("/api/analytics/wrapped/{year}")
+def get_wrapped_data(year: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    history = db.query(WatchHistory).filter(WatchHistory.user_id == current_user.id, WatchHistory.status == 'watched').all()
+    
+    year_history = [h for h in history if h.watched_at and h.watched_at.year == year]
+    
+    if not year_history:
+        return {"error": "No data for this year"}
+        
+    total_minutes = sum([h.runtime for h in year_history if h.runtime])
+    movies_count = len([h for h in year_history if h.media_type == 'movie'])
+    tv_count = len([h for h in year_history if h.media_type == 'tv'])
+    
+    # Top genres
+    gc = Counter()
+    for h in year_history:
+        if h.genres:
+            for g in h.genres.split(','): gc[g.strip()] += 1
+    top_genres = gc.most_common(3)
+    
+    # NEW SLIDES DATA
+    # 1. Top Actors
+    cast_counter = Counter()
+    for h in year_history:
+        if h.cast:
+            for actor in h.cast.split(','):
+                cast_counter[actor.strip()] += 1
+    top_actors = cast_counter.most_common(3)
+    
+    # 2. Top Directors / Crew
+    crew_counter = Counter()
+    for h in year_history:
+        if h.crew:
+            for c in h.crew.split(','):
+                crew_counter[c.strip()] += 1
+    top_directors = crew_counter.most_common(2)
+
+    # 3. Longest Watch
+    longest_item = None
+    if year_history:
+        valid_runtimes = [h for h in year_history if h.runtime and h.runtime > 0]
+        if valid_runtimes:
+            longest = max(valid_runtimes, key=lambda x: x.runtime)
+            longest_item = {
+                "title": longest.title,
+                "runtime": longest.runtime,
+                "poster": f"https://image.tmdb.org/t/p/w200{longest.poster_path}" if longest.poster_path else None
+            }
+            
+    # 4. Oldest Discovery
+    oldest_item = None
+    if year_history:
+        valid_release = [h for h in year_history if h.release_date and len(h.release_date) >= 4]
+        if valid_release:
+            # Sort by year parsed from string
+            oldest = min(valid_release, key=lambda x: int(x.release_date[:4]) if x.release_date[:4].isdigit() else 9999)
+            oldest_item = {
+                "title": oldest.title,
+                "year": oldest.release_date[:4],
+                "poster": f"https://image.tmdb.org/t/p/w200{oldest.poster_path}" if oldest.poster_path else None
+            }
+
+    # Witty Commentary
+    commentary = []
+    if total_minutes > 50000:
+        commentary.append("You spent a literal month of your life watching screens. Impressive.")
+    elif total_minutes < 1000:
+        commentary.append("Did you even plug your TV in this year?")
+        
+    if top_genres and top_genres[0][0] == "Horror":
+        commentary.append("You watched mostly Horror. Seeking therapy might be cheaper.")
+    elif top_genres and top_genres[0][0] == "Romance":
+        commentary.append("A true hopeless romantic. We hope you found love too.")
+        
+    # Percentiles (mocked for flair)
+    percentile = max(1, 100 - (total_minutes // 1000))
+    ranking = f"Top {percentile}% of users worldwide in watch time!"
+    
+    return {
+        "year": year,
+        "total_minutes": total_minutes,
+        "movies_count": movies_count,
+        "tv_count": tv_count,
+        "top_genres": top_genres,
+        "top_actors": top_actors,
+        "top_directors": top_directors,
+        "longest_item": longest_item,
+        "oldest_item": oldest_item,
+        "commentary": commentary,
+        "ranking": ranking
+    }
 
 @app.get("/api/upcoming")
 async def get_upcoming():
