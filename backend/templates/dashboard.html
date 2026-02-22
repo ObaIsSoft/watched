@@ -1447,19 +1447,33 @@
                 <div id="dm-thread-list-pane"
                     class="w-full md:w-72 flex-shrink-0 flex flex-col border-b md:border-b-0 md:border-r border-white/10 bg-[#0d1117]">
                     <!-- Header -->
-                    <div class="flex items-center justify-between p-5 border-b border-white/5">
-                        <h2 class="text-lg font-black text-white flex items-center gap-2">
-                            <i data-lucide="message-circle" class="w-5 h-5 text-indigo-400"></i>
-                            Messages
-                        </h2>
-                        <button
-                            onclick="document.getElementById('inbox-modal').classList.add('hidden'); document.body.style.overflow='auto';"
-                            class="text-slate-500 hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-lg">
-                            <i data-lucide="x" class="w-4 h-4"></i>
-                        </button>
+                    <div class="flex flex-col border-b border-white/5 p-4 gap-3">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-lg font-black text-white flex items-center gap-2">
+                                <i data-lucide="message-circle" class="w-5 h-5 text-indigo-400"></i>
+                                Messages
+                            </h2>
+                            <button
+                                onclick="document.getElementById('inbox-modal').classList.add('hidden'); document.body.style.overflow='auto';"
+                                class="text-slate-500 hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-lg">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <!-- Search Bar -->
+                        <div class="relative w-full">
+                            <i data-lucide="search"
+                                class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
+                            <input type="text" id="dm-user-search" placeholder="Search friends to message..."
+                                class="w-full bg-[#1e293b] border border-white/10 rounded-lg py-2 pl-9 pr-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors">
+                            <button id="dm-user-search-clear"
+                                class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 hover:text-white hidden cursor-pointer"
+                                onclick="clearDMSearch()">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
                     </div>
                     <!-- Thread List -->
-                    <div id="dm-thread-list" class="flex-1 overflow-y-auto py-2">
+                    <div id="dm-thread-list" class="flex-1 overflow-y-auto py-2 custom-scrollbar">
                         <div class="flex items-center justify-center h-24 text-slate-600 text-sm">
                             <div
                                 class="animate-spin w-4 h-4 border border-indigo-500 border-t-transparent rounded-full mr-2">
@@ -4983,19 +4997,83 @@
         // --- Inbox Logic ---
         let activeDMUserId = null;
         let activeDMUserName = '';
+        let dmSearchTimeout = null;
 
         function openInbox() {
             document.getElementById('inbox-modal').classList.remove('hidden');
             document.body.style.overflow = 'hidden';
-            loadDMThreads();
+
+            // Attach search listener once
+            const searchInput = document.getElementById('dm-user-search');
+            if (searchInput && !searchInput.dataset.initialized) {
+                searchInput.dataset.initialized = "true";
+                searchInput.addEventListener('input', (e) => {
+                    const q = e.target.value.trim();
+                    const clearBtn = document.getElementById('dm-user-search-clear');
+                    if (q.length > 0) {
+                        clearBtn.classList.remove('hidden');
+                        clearTimeout(dmSearchTimeout);
+                        dmSearchTimeout = setTimeout(() => searchDMUsers(q), 400);
+                    } else {
+                        clearDMSearch();
+                    }
+                });
+            }
+
+            clearDMSearch(); // Loads normal threads initially
             if (window.lucide) lucide.createIcons();
+        }
+
+        function clearDMSearch() {
+            const searchInput = document.getElementById('dm-user-search');
+            const clearBtn = document.getElementById('dm-user-search-clear');
+            if (searchInput) searchInput.value = '';
+            if (clearBtn) clearBtn.classList.add('hidden');
+            loadDMThreads();
+        }
+
+        async function searchDMUsers(query) {
+            const list = document.getElementById('dm-thread-list');
+            list.innerHTML = `<div class="p-4 text-center text-slate-500 text-sm"><div class="animate-spin w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full inline-block mr-2 align-middle"></div> Searching...</div>`;
+
+            try {
+                const res = await authFetch(`/api/social/search?q=${encodeURIComponent(query)}`);
+                if (!res || !res.ok) throw new Error("Search failed");
+                const users = await res.json();
+
+                if (users.length === 0) {
+                    list.innerHTML = `<div class="p-8 text-center text-slate-500 text-sm flex flex-col items-center gap-2"><i data-lucide="user-x" class="w-8 h-8 text-slate-700"></i>No users found</div>`;
+                    if (window.lucide) lucide.createIcons();
+                    return;
+                }
+
+                list.innerHTML = users.map(u => {
+                    const initials = u.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+                    return `
+                    <button onclick="openDMThread(${u.id}, '${u.name.replace(/'/g, "\\'")}', '${u.picture || ''}')"
+                        class="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors group">
+                        <div class="relative flex-shrink-0">
+                            ${u.picture ? `<img src="${u.picture}" class="w-10 h-10 rounded-full object-cover border border-white/10">` : `<div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">${initials}</div>`}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-sm font-bold text-white truncate">${u.name}</div>
+                            <div class="text-xs text-slate-500 mt-0.5 truncate">Start conversation ✨</div>
+                        </div>
+                    </button>`;
+                }).join('');
+                if (window.lucide) lucide.createIcons();
+            } catch (e) {
+                list.innerHTML = `<div class="p-4 text-center text-red-500 text-sm">Failed to search users.</div>`;
+            }
         }
 
         async function loadDMThreads() {
             const list = document.getElementById('dm-thread-list');
+            list.innerHTML = `<div class="flex items-center justify-center h-24 text-slate-600 text-sm"><div class="animate-spin w-4 h-4 border border-indigo-500 border-t-transparent rounded-full mr-2"></div>Loading...</div>`;
+
             const res = await authFetch('/api/inbox/threads');
             if (!res || !res.ok) {
-                list.innerHTML = `<div class="p-4 text-center text-slate-500 text-sm">No conversations yet.</div>`;
+                list.innerHTML = `<div class="p-4 text-center text-slate-500 text-sm">Error loading conversations.</div>`;
                 return;
             }
             const threads = await res.json();
@@ -5100,6 +5178,17 @@
 
         function buildBubble(m) {
             const timeStr = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            if (m.type === 'follow') {
+                return `
+                <div class="flex justify-center my-4">
+                    <div class="bg-indigo-500/10 border border-indigo-500/20 rounded-full px-4 py-1.5 text-xs text-indigo-300 flex items-center gap-2 shadow-sm">
+                        <i data-lucide="user-check" class="w-3.5 h-3.5"></i>
+                        <span>${m.is_mine ? 'You started following them' : 'Started following you'}</span>
+                        <span class="opacity-50 ml-1 ml-1 pl-2 border-l border-indigo-500/20">${timeStr}</span>
+                    </div>
+                </div>`;
+            }
 
             if (m.type === 'recommendation' && m.content_id) {
                 // Film card bubble

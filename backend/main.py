@@ -2394,6 +2394,16 @@ def follow_user(user_id: int, db: Session = Depends(get_db), current_user: User 
         
     new_follow = Follower(follower_id=current_user.id, followed_id=user_id)
     db.add(new_follow)
+    
+    # Notify user of new follower via inbox
+    msg = InboxMessage(
+        sender_id=current_user.id,
+        receiver_id=user_id,
+        type="follow",
+        message="Started following you"
+    )
+    db.add(msg)
+    
     db.commit()
     return {"status": "followed", "user": target.name}
 
