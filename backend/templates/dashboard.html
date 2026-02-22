@@ -5430,53 +5430,6 @@
             }
         }
 
-        // --- Messages ---
-        async function loadInbox() {
-            const res = await authFetch('/api/inbox');
-            if (res && res.ok) {
-                const msgs = await res.json();
-                const container = document.getElementById('inbox-list');
-                if (msgs.length === 0) {
-                    container.innerHTML = '<div class="text-slate-500 text-center py-10 italic">Your inbox is empty.</div>';
-                    return;
-                }
-                container.innerHTML = msgs.map(m => `
-                    <div class="bg-white/5 p-4 rounded-xl border border-white/5">
-                        <div class="flex items-center gap-3 mb-2">
-                            <img src="${m.sender_pic}" class="w-8 h-8 rounded-full">
-                            <div>
-                                <div class="text-sm font-bold text-white">${m.sender_name}</div>
-                                <div class="text-[10px] text-slate-500">${new Date(m.created_at).toLocaleDateString()}</div>
-                            </div>
-                        </div>
-                        <div class="text-sm text-slate-300 mb-3 ml-11">
-                            ${m.type === 'recommendation' ? 'Recommended a title' : (m.type === 'dm' ? 'Sent a message' : 'Sent an invite')}:
-                            <div class="italic text-white/80 mt-1 bg-black/20 p-2 rounded">"${m.message || ''}"</div>
-                        </div>
-                        <div class="flex justify-end gap-2">
-                            ${m.type === 'dm'
-                        ? `<button onclick="openDMModal(${m.sender_id}, '${m.sender_name}')" class="px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg">Reply</button>`
-                        : `<button onclick="processMessage(${m.id}, 'accept')" class="px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg">Add to List</button>`
-                    }
-                        </div>
-                    </div>
-                    </div>
-                `).join('');
-            }
-        }
-
-        async function processMessage(id, action) {
-            await authFetch(`/api/inbox/${id}/process?action=${action}`, { method: 'POST' });
-            loadInbox();
-        }
-
-        // --- DM Logic ---
-        function openDMModal(userId, userName) {
-            document.getElementById('dm-recipient-id').value = userId;
-            document.getElementById('dm-recipient-name').innerText = userName;
-            document.getElementById('dm-message-content').value = '';
-            document.getElementById('dm-modal').classList.remove('hidden');
-        }
 
         async function sendDM() {
             const userId = document.getElementById('dm-recipient-id').value;
@@ -5768,8 +5721,22 @@
                 <h1
                     class="text-5xl md:text-6xl font-black mb-3 text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 text-center tracking-tight">
                     The Taste Maker</h1>
-                <p class="text-slate-400 mb-10 text-center text-lg max-w-2xl mx-auto">Pick 5 critically acclaimed films
+                <p class="text-slate-400 mb-6 text-center text-lg max-w-2xl mx-auto">Pick 5 critically acclaimed films
                     you absolutely love to calibrate your cinematic profile.</p>
+
+                <!-- Search & Refresh Control Bar -->
+                <div class="flex flex-col sm:flex-row items-center justify-between w-full max-w-2xl mb-6 gap-4">
+                    <div class="relative w-full sm:w-2/3">
+                        <i data-lucide="search"
+                            class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
+                        <input type="text" id="wizard-search" placeholder="Search for a specific movie..."
+                            class="w-full bg-white/5 border border-white/10 rounded-full py-3 px-12 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all">
+                    </div>
+                    <button id="wizard-refresh-btn" onclick="refreshWizardMovies()"
+                        class="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i> Show More
+                    </button>
+                </div>
 
                 <div id="wizard-movies-grid"
                     class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 md:gap-6 mb-12 w-full max-h-[55vh] overflow-y-auto px-4 pb-4 custom-scrollbar">
@@ -5899,72 +5866,140 @@
         }
 
         // -------------------------
-        // V3 TASTE MAKER WIZARD
+        // V3 TASTE MAKER WIZARD 2.0
         // -------------------------
-        let wizardSelectedMovies = [];
+        let wizardSelectedMovies = new Map(); // TMDB_ID -> { id, status: 'watched' | 'watchlist' }
         let wizardSelectedGenres = [];
+        let wizardSearchTimeout = null;
 
         async function initTasteMakerWizard() {
             const wizardEl = document.getElementById('onboarding-wizard');
             if (!wizardEl) {
-                // If wizard UI doesn't exist in V3 Layout, silently complete
                 authFetch('/api/onboarding/complete', { method: 'POST' }).catch(console.error);
                 completeWizard();
                 return;
             }
-
             wizardEl.style.display = 'flex';
-
             const mainAppContent = document.getElementById('main-scroll-area');
             if (mainAppContent) mainAppContent.classList.add('blur-sm', 'pointer-events-none');
 
-            // Fetch popular movies for Step 1
-            try {
-                // Fixed API Key to match backend ENV
-                const res = await fetch(`https://api.themoviedb.org/3/movie/popular?api_key=331904c8f8fb8f3fbe3e59cf24566a89&language=en-US&page=1`);
-                const data = await res.json();
+            // Setup Search Listener
+            const searchInput = document.getElementById('wizard-search');
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    clearTimeout(wizardSearchTimeout);
+                    const q = e.target.value.trim();
+                    wizardSearchTimeout = setTimeout(() => {
+                        if (q.length > 1) fetchWizardMovies(q);
+                        else fetchWizardMovies(); // Reset to popular
+                    }, 500);
+                });
+            }
 
-                if (!data || !data.results) {
-                    throw new Error("Invalid or Unauthorized TMDB response for onboarding movies");
+            await fetchWizardMovies(); // Load initial
+        }
+
+        async function refreshWizardMovies() {
+            const btn = document.getElementById('wizard-refresh-btn');
+            if (btn) btn.classList.add('animate-spin');
+            await fetchWizardMovies();
+            if (btn) btn.classList.remove('animate-spin');
+        }
+
+        async function fetchWizardMovies(query = null) {
+            const grid = document.getElementById('wizard-movies-grid');
+            if (grid) grid.innerHTML = '<div class="col-span-full py-12 flex justify-center"><div class="animate-spin w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full"></div></div>';
+
+            try {
+                let url;
+                if (query) {
+                    url = `https://api.themoviedb.org/3/search/movie?api_key=331904c8f8fb8f3fbe3e59cf24566a89&language=en-US&query=${encodeURIComponent(query)}&page=1`;
+                } else {
+                    const randomPage = Math.floor(Math.random() * 20) + 1;
+                    url = `https://api.themoviedb.org/3/movie/popular?api_key=331904c8f8fb8f3fbe3e59cf24566a89&language=en-US&page=${randomPage}`;
                 }
+
+                const res = await fetch(url);
+                const data = await res.json();
+                if (!data || !data.results) throw new Error("Invalid TMDB response");
 
                 let html = '';
                 data.results.slice(0, 15).forEach((movie, i) => {
                     const poster = movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : FALLBACK_POSTER;
+                    const existing = wizardSelectedMovies.get(movie.id);
+                    const isSelected = !!existing;
+
                     html += `
-                        <div onclick="toggleWizardMovie(${movie.id}, this)" class="movie-select-card relative rounded-lg overflow-hidden aspect-[2/3] animate-up delay-${(i % 5) * 100}">
+                        <div id="wiz-card-${movie.id}" class="movie-select-card relative rounded-lg overflow-hidden aspect-[2/3] animate-up delay-${(i % 5) * 100} group ${isSelected ? 'selected ring-2 ring-indigo-500' : ''}">
                             <img src="${poster}" class="w-full h-full object-cover">
-                            <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 transition-opacity check-overlay">
-                                <i data-lucide="check-circle-2" class="w-10 h-10 text-indigo-400"></i>
+                            <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-center items-center gap-3 p-4 z-10 wiz-buttons-overlay ${isSelected ? '!opacity-0 pointer-events-none' : ''}">
+                                <button onclick="setWizardMovie(${movie.id}, 'watched')" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-bold shadow-lg flex items-center justify-center gap-2">
+                                    <i data-lucide="eye" class="w-4 h-4"></i> Watched
+                                </button>
+                                <button onclick="setWizardMovie(${movie.id}, 'watchlist')" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-bold shadow-lg flex items-center justify-center gap-2">
+                                    <i data-lucide="plus" class="w-4 h-4"></i> Watchlist
+                                </button>
+                            </div>
+                            <div onclick="removeWizardMovie(${movie.id})" class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 transition-opacity cursor-pointer wiz-check-overlay ${isSelected ? '!opacity-100' : ''}">
+                                ${existing && existing.status === 'watchlist'
+                            ? '<div class="flex flex-col items-center"><i data-lucide="bookmark" class="w-10 h-10 text-emerald-400 mb-1"></i><span class="text-xs font-bold text-emerald-300 bg-black/50 px-2 py-0.5 rounded">Saved</span></div>'
+                            : '<div class="flex flex-col items-center"><i data-lucide="check-circle-2" class="w-10 h-10 text-indigo-400 mb-1"></i><span class="text-xs font-bold text-indigo-300 bg-black/50 px-2 py-0.5 rounded">Watched</span></div>'
+                        }
                             </div>
                         </div>
                     `;
                 });
-                const grid = document.getElementById('wizard-movies-grid');
                 if (grid) grid.innerHTML = html;
                 if (window.lucide) lucide.createIcons();
 
             } catch (e) {
                 console.error("Failed to load wizard movies", e);
-                // Fallback: skip wizard if TMDB fails
-                completeWizard();
+                if (!query) completeWizard(); // Only bail out fully if popular fails, not just a bad search
             }
         }
 
-        function toggleWizardMovie(id, el) {
-            const idx = wizardSelectedMovies.indexOf(id);
-            if (idx > -1) {
-                wizardSelectedMovies.splice(idx, 1);
-                el.classList.remove('selected');
-                el.querySelector('.check-overlay').style.opacity = '0';
-            } else {
-                wizardSelectedMovies.push(id);
-                el.classList.add('selected');
-                el.querySelector('.check-overlay').style.opacity = '1';
-            }
+        function setWizardMovie(id, status) {
+            wizardSelectedMovies.set(id, { id, status });
+            updateWizardUIAfterSelection(id, status);
+        }
 
+        function removeWizardMovie(id) {
+            wizardSelectedMovies.delete(id);
+            const card = document.getElementById(`wiz-card-${id}`);
+            if (card) {
+                card.classList.remove('selected', 'ring-2', 'ring-indigo-500');
+                const btnOverlay = card.querySelector('.wiz-buttons-overlay');
+                const checkOverlay = card.querySelector('.wiz-check-overlay');
+                if (btnOverlay) btnOverlay.classList.remove('!opacity-0', 'pointer-events-none');
+                if (checkOverlay) {
+                    checkOverlay.classList.remove('!opacity-100');
+                    checkOverlay.innerHTML = '';
+                }
+            }
+            updateWizardButtonState();
+        }
+
+        function updateWizardUIAfterSelection(id, status) {
+            const card = document.getElementById(`wiz-card-${id}`);
+            if (card) {
+                card.classList.add('selected', 'ring-2', 'ring-indigo-500');
+                const btnOverlay = card.querySelector('.wiz-buttons-overlay');
+                const checkOverlay = card.querySelector('.wiz-check-overlay');
+                if (btnOverlay) btnOverlay.classList.add('!opacity-0', 'pointer-events-none');
+                if (checkOverlay) {
+                    checkOverlay.classList.add('!opacity-100');
+                    const icon = status === 'watchlist'
+                        ? '<div class="flex flex-col items-center"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-400 mb-1"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg><span class="text-xs font-bold text-emerald-300 bg-black/50 px-2 py-0.5 rounded">Saved</span></div>'
+                        : '<div class="flex flex-col items-center"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400 mb-1"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg><span class="text-xs font-bold text-indigo-300 bg-black/50 px-2 py-0.5 rounded">Watched</span></div>';
+                    checkOverlay.innerHTML = icon;
+                }
+            }
+            updateWizardButtonState();
+        }
+
+        function updateWizardButtonState() {
             const btn = document.getElementById('wizard-btn-1');
-            const needed = 5 - wizardSelectedMovies.length;
+            const needed = 5 - wizardSelectedMovies.size;
             if (needed <= 0) {
                 btn.disabled = false;
                 btn.innerText = "Continue";
@@ -6004,13 +6039,21 @@
                 // Final submission to backend
                 const textEl = document.getElementById('wizard-loading-text');
 
-                // 1. Add watched movies
-                for (let i = 0; i < wizardSelectedMovies.length; i++) {
-                    textEl.innerText = `Logging movie ${i + 1} of ${wizardSelectedMovies.length}...`;
+                // 1. Add watched/watchlist movies from Map
+                const selections = Array.from(wizardSelectedMovies.values());
+                for (let i = 0; i < selections.length; i++) {
+                    const item = selections[i];
+                    textEl.innerText = `Logging movie ${i + 1} of ${selections.length}...`;
                     await authFetch(`/api/log`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ title: 'Onboarding Selection', tmdb_id: wizardSelectedMovies[i], media_type: 'movie', status: 'watched', rating: 5 })
+                        body: JSON.stringify({
+                            title: 'Onboarding Selection',
+                            tmdb_id: item.id,
+                            media_type: 'movie',
+                            status: item.status,
+                            rating: item.status === 'watched' ? 5 : null
+                        })
                     });
                 }
 
