@@ -6876,42 +6876,12 @@
             // 1. World Map
             if (stats.country_distribution && window.jsVectorMap) {
 
-                // Name → ISO-2 conversion table (covers 95%+ of TMDB entries)
-                const NAME_TO_ISO = {
-                    'United States of America': 'US', 'United States': 'US', 'USA': 'US',
-                    'United Kingdom': 'GB', 'UK': 'GB',
-                    'France': 'FR', 'Germany': 'DE', 'Italy': 'IT', 'Spain': 'ES',
-                    'Japan': 'JP', 'South Korea': 'KR', 'China': 'CN', 'Hong Kong': 'HK',
-                    'India': 'IN', 'Australia': 'AU', 'Canada': 'CA', 'Brazil': 'BR',
-                    'Mexico': 'MX', 'Russia': 'RU', 'Sweden': 'SE', 'Denmark': 'DK',
-                    'Norway': 'NO', 'Finland': 'FI', 'Netherlands': 'NL', 'Belgium': 'BE',
-                    'Switzerland': 'CH', 'Austria': 'AT', 'Poland': 'PL', 'Czech Republic': 'CZ',
-                    'Portugal': 'PT', 'Greece': 'GR', 'Hungary': 'HU', 'Romania': 'RO',
-                    'Ireland': 'IE', 'Israel': 'IL', 'Turkey': 'TR', 'Iran': 'IR',
-                    'Taiwan': 'TW', 'Thailand': 'TH', 'Pakistan': 'PK', 'Nigeria': 'NG',
-                    'South Africa': 'ZA', 'Egypt': 'EG', 'Argentina': 'AR', 'Colombia': 'CO',
-                    'Chile': 'CL', 'New Zealand': 'NZ', 'Philippines': 'PH', 'Indonesia': 'ID',
-                    'Malaysia': 'MY', 'Vietnam': 'VN', 'Singapore': 'SG', 'Bangladesh': 'BD',
-                    'Ukraine': 'UA', 'Slovakia': 'SK', 'Croatia': 'HR', 'Serbia': 'RS',
-                    'Denmark': 'DK', 'Luxembourg': 'LU', 'Bulgaria': 'BG', 'Lebanon': 'LB',
-                    'Morocco': 'MA', 'Kenya': 'KE', 'Ghana': 'GH', 'Ethiopia': 'ET',
-                    'Saudi Arabia': 'SA', 'UAE': 'AE', 'United Arab Emirates': 'AE',
-                    'Qatar': 'QA', 'Kuwait': 'KW', 'Jordan': 'JO',
-                    'Peru': 'PE', 'Venezuela': 'VE', 'Ecuador': 'EC', 'Uruguay': 'UY',
-                    'Czechia': 'CZ', 'North Korea': 'KP', 'Myanmar': 'MM', 'Cambodia': 'KH',
-                };
+                // Backend now emits clean ISO-2 codes — use directly, no frontend conversion needed
+                const rawData = Object.fromEntries(
+                    Object.entries(stats.country_distribution).filter(([k]) => k && k.trim() !== '' && k.length === 2)
+                );
 
-                // Convert full names to ISO codes, merging counts where applicable
-                const isoData = {};
-                for (const [name, count] of Object.entries(stats.country_distribution)) {
-                    const iso = NAME_TO_ISO[name.trim()] || (name.trim().length === 2 ? name.trim().toUpperCase() : null);
-                    if (iso) {
-                        isoData[iso] = (isoData[iso] || 0) + count;
-                    }
-                }
-
-                if (Object.keys(isoData).length === 0) {
-                    // No convertible data — show a friendly message instead of a broken map
+                if (Object.keys(rawData).length === 0) {
                     document.getElementById('world-map-container').innerHTML = `
                         <div class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 text-sm gap-2">
                             <i data-lucide="map" class="w-8 h-8 text-slate-700"></i>
@@ -6928,13 +6898,12 @@
                         <div class="animate-spin w-6 h-6 border-2 border-indigo-400 border-t-transparent rounded-full"></div>
                     </div>`;
 
-                const rawData = isoData;
-
                 // Normalize values to 0-100 scale relative to the max country
                 const maxVal = Math.max(...Object.values(rawData), 1);
                 const normalizedData = Object.fromEntries(
                     Object.entries(rawData).map(([k, v]) => [k, Math.round((v / maxVal) * 100)])
                 );
+
 
                 // Update header badges
                 const totalBadge = document.getElementById('map-total-badge');
