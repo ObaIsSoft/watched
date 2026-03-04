@@ -1326,7 +1326,8 @@ async def log_content(request: LogRequest, db: Session = Depends(get_db), curren
     total_episodes = tmdb_result.get('number_of_episodes', 0)
     
     production_companies = json.dumps([c['name'] for c in tmdb_result.get('production_companies', [])])
-    production_countries = json.dumps([c['name'] for c in tmdb_result.get('production_countries', [])])
+    production_countries = ", ".join([c['iso_3166_1'] for c in tmdb_result.get('production_countries', [])])
+
     
     # Cast/Crew (Credits usually come separate or attached? navigate get_tmdb_details to check)
     # Assuming get_tmdb_details includes append_to_response=credits
@@ -1694,12 +1695,54 @@ def get_stats(db: Session = Depends(get_db), current_user: User = Depends(get_cu
                 k = k.strip()
                 if k: keywords_count[k] += 1
 
-        # Countries
+        # Countries — normalise to ISO-2 codes so country_distribution is always consistent
         if item.production_countries:
-            for c in item.production_countries.split(','):
-                c = c.strip()
-                if c: country_count[c] += 1
-            
+            raw_pc = item.production_countries.strip()
+            if raw_pc.startswith('['):
+                try:
+                    import json as _json
+                    raw_names = _json.loads(raw_pc)
+                except Exception:
+                    raw_names = []
+            else:
+                raw_names = [c.strip() for c in raw_pc.split(',') if c.strip()]
+
+            NAME_TO_ISO = {
+                'United States of America': 'US', 'United States': 'US', 'USA': 'US',
+                'United Kingdom': 'GB', 'UK': 'GB',
+                'France': 'FR', 'Germany': 'DE', 'Italy': 'IT', 'Spain': 'ES',
+                'Japan': 'JP', 'South Korea': 'KR', 'China': 'CN', 'Hong Kong': 'HK',
+                'India': 'IN', 'Australia': 'AU', 'Canada': 'CA', 'Brazil': 'BR',
+                'Mexico': 'MX', 'Russia': 'RU', 'Sweden': 'SE', 'Denmark': 'DK',
+                'Norway': 'NO', 'Finland': 'FI', 'Netherlands': 'NL', 'Belgium': 'BE',
+                'Switzerland': 'CH', 'Austria': 'AT', 'Poland': 'PL', 'Czech Republic': 'CZ',
+                'Czechia': 'CZ', 'Portugal': 'PT', 'Greece': 'GR', 'Hungary': 'HU',
+                'Romania': 'RO', 'Ireland': 'IE', 'Israel': 'IL', 'Turkey': 'TR',
+                'Iran': 'IR', 'Taiwan': 'TW', 'Thailand': 'TH', 'Pakistan': 'PK',
+                'Nigeria': 'NG', 'South Africa': 'ZA', 'Egypt': 'EG', 'Argentina': 'AR',
+                'Colombia': 'CO', 'Chile': 'CL', 'New Zealand': 'NZ', 'Philippines': 'PH',
+                'Indonesia': 'ID', 'Malaysia': 'MY', 'Vietnam': 'VN', 'Singapore': 'SG',
+                'Ukraine': 'UA', 'Slovakia': 'SK', 'Croatia': 'HR', 'Serbia': 'RS',
+                'Luxembourg': 'LU', 'Bulgaria': 'BG', 'Lebanon': 'LB', 'Morocco': 'MA',
+                'Kenya': 'KE', 'Ghana': 'GH', 'Ethiopia': 'ET', 'Saudi Arabia': 'SA',
+                'United Arab Emirates': 'AE', 'UAE': 'AE', 'Qatar': 'QA', 'Kuwait': 'KW',
+                'Jordan': 'JO', 'Peru': 'PE', 'Venezuela': 'VE', 'Ecuador': 'EC',
+                'Uruguay': 'UY', 'Myanmar': 'MM', 'Cambodia': 'KH', 'Bangladesh': 'BD',
+                'North Korea': 'KP',
+            }
+            for name in raw_names:
+                name = str(name).strip()
+                if not name:
+                    continue
+                # Already an ISO-2 code → keep as-is (uppercase)
+                if len(name) == 2:
+                    country_count[name.upper()] += 1
+                else:
+                    iso = NAME_TO_ISO.get(name)
+                    if iso:
+                        country_count[iso] += 1
+                    # else: unknown country name — skip rather than pollute the data
+
         # Activity
         if item.watched_at:
             month_key = item.watched_at.strftime("%Y-%m")
@@ -2159,6 +2202,7 @@ async def mood_search(req: MoodRequest, current_user: User = Depends(get_current
 
 @app.get("/api/smart-suggestions/when-to-watch")
 async def get_when_to_watch(current_user: User = Depends(get_current_user)):
+    import random
     now = datetime.now()
     hour = now.hour
     is_weekend = now.weekday() >= 5
@@ -2166,7 +2210,8 @@ async def get_when_to_watch(current_user: User = Depends(get_current_user)):
     params = {
         "api_key": TMDB_API_KEY,
         "sort_by": "popularity.desc",
-        "vote_count.gte": 200
+        "vote_count.gte": 200,
+        "page": random.randint(1, 5)  # Randomise page so refresh fetches different movies
     }
     
     context_msg = ""
@@ -2174,7 +2219,7 @@ async def get_when_to_watch(current_user: User = Depends(get_current_user)):
     if is_weekend and (hour > 19 or hour < 2):
         params["with_genres"] = "28|878|12" # Action, SciFi, Adventure
         params["with_runtime.gte"] = 120
-        context_msg = "It's weekend movie night! Settle in for a blockbuster."
+        context_msg = f"It's weekend movie night! Settle in for a blockbuster."
         url = "https://api.themoviedb.org/3/discover/movie"
     elif not is_weekend and (hour > 20):
         params["with_genres"] = "35|18" # Comedy, Drama
@@ -2193,12 +2238,14 @@ async def get_when_to_watch(current_user: User = Depends(get_current_user)):
     async with httpx.AsyncClient() as client:
         res = await client.get(url, params=params)
         if res.status_code == 200:
-            results = res.json().get('results', [])[:6]
+            results = res.json().get('results', [])
+            random.shuffle(results)  # Shuffle so order changes each refresh
             return {
                 "context": context_msg,
-                "results": results
+                "results": results[:8]
             }
-        return {"context": "Here's what popular right now.", "results": []}
+        return {"context": "Here's what's popular right now.", "results": []}
+
 
 @app.get("/api/streaming-availability/{media_type}/{tmdb_id}")
 async def get_streaming_availability(media_type: str, tmdb_id: int):
@@ -2365,6 +2412,63 @@ async def get_recommendations(db: Session = Depends(get_db), current_user: User 
     random.shuffle(top_candidates)
     
     return top_candidates[:18]
+
+
+@app.get("/api/stats/weekly")
+def get_weekly_stats(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Returns top 5 movies, actors, directors for this week and last week."""
+    from datetime import timedelta
+    now = datetime.utcnow()
+    
+    # Week boundaries (starts Monday)
+    week_start = now - timedelta(days=now.weekday())
+    week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+    last_week_start = week_start - timedelta(weeks=1)
+    last_week_end = week_start
+    
+    def get_week_stats(start, end):
+        history = db.query(WatchHistory).filter(
+            WatchHistory.user_id == current_user.id,
+            WatchHistory.status == 'watched',
+            WatchHistory.watched_at >= start,
+            WatchHistory.watched_at < end
+        ).order_by(WatchHistory.watched_at.desc()).all()
+        
+        cast_c = Counter()
+        crew_c = Counter()
+        movies = []
+        
+        for item in history:
+            if item.cast:
+                for c in item.cast.split(','):
+                    c = c.strip()
+                    if c: cast_c[c] += 1
+            if item.crew:
+                for c in item.crew.split(','):
+                    c = c.strip()
+                    if c: crew_c[c] += 1
+            if item.title:
+                movies.append({
+                    "title": item.title,
+                    "poster_path": item.poster_path,
+                    "tmdb_id": item.tmdb_id,
+                    "media_type": item.media_type or "movie",
+                    "rating": item.rating,
+                })
+        
+        return {
+            "top_movies": movies[:5],
+            "top_actors": [{"name": n, "count": c} for n, c in cast_c.most_common(5)],
+            "top_directors": [{"name": n, "count": c} for n, c in crew_c.most_common(5)],
+            "total_watched": len(history),
+            "week_label": start.strftime("%d %b")
+        }
+    
+    return {
+        "this_week": get_week_stats(week_start, now),
+        "last_week": get_week_stats(last_week_start, last_week_end),
+    }
+
 
 async def fetch_trending_content():
     async with httpx.AsyncClient() as client:
