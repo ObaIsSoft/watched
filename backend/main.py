@@ -1611,6 +1611,18 @@ def add_collaborator(id: int, request: CollabRequest, db: Session = Depends(get_
     
 @app.get("/api/stats")
 def get_stats(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return calculate_user_stats(db, current_user)
+
+@app.get("/api/public/stats/{uid}")
+def get_public_stats(uid: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == uid).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    # For public stats, we reuse the massive calculation engine but the frontend 
+    # won't render the private stuff like inbox/recommendations
+    return calculate_user_stats(db, user)
+
+def calculate_user_stats(db: Session, current_user: User):
     history = db.query(WatchHistory).filter(WatchHistory.user_id == current_user.id).all()
     
     # 1. Counts & Basics
@@ -2944,6 +2956,18 @@ def export_data(type: str = "history", format: str = "csv", db: Session = Depend
     return Response(content=output.getvalue(), media_type="text/csv", headers=headers)
 
 
+@app.get("/u/{uid}/analytics", response_class=HTMLResponse)
+async def view_public_analytics(request: Request, uid: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == uid).first()
+    if not user:
+        return templates.TemplateResponse("404.html", {"request": request})
+        
+    return templates.TemplateResponse("analytics_public.html", {
+        "request": request, 
+        "user": user,
+        "title": "Analytics Dashboard",
+    })
+
 @app.get("/u/{uid}/{type}", response_class=HTMLResponse)
 async def view_public_list(request: Request, uid: int, type: str, db: Session = Depends(get_db)):
     # Validate type
@@ -3360,6 +3384,15 @@ def block_item(tmdb_id: int, db: Session = Depends(get_db), current_user: User =
 
 @app.get("/api/analytics/scatter")
 async def get_scatter_data(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return await calculate_scatter_data(db, current_user)
+
+@app.get("/api/public/analytics/scatter/{uid}")
+async def get_public_scatter_data(uid: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == uid).first()
+    if not user: raise HTTPException(status_code=404, detail="User not found")
+    return await calculate_scatter_data(db, user)
+
+async def calculate_scatter_data(db: Session, current_user: User):
     # Returns the data for the Rating vs Popularity scatterplot (Critic Curve)
     rated_items = db.query(WatchHistory).filter(WatchHistory.user_id == current_user.id, WatchHistory.rating > 0).all()
     
@@ -3407,6 +3440,15 @@ async def get_scatter_data(db: Session = Depends(get_db), current_user: User = D
 
 @app.get("/api/analytics/wrapped/{year}")
 def get_wrapped_data(year: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return calculate_wrapped_data(year, db, current_user)
+
+@app.get("/api/public/analytics/wrapped/{uid}/{year}")
+def get_public_wrapped_data(uid: int, year: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == uid).first()
+    if not user: raise HTTPException(status_code=404, detail="User not found")
+    return calculate_wrapped_data(year, db, user)
+
+def calculate_wrapped_data(year: int, db: Session, current_user: User):
     history = db.query(WatchHistory).filter(WatchHistory.user_id == current_user.id, WatchHistory.status == 'watched').all()
     
     year_history = [h for h in history if h.watched_at and h.watched_at.year == year]

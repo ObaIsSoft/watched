@@ -158,7 +158,7 @@
                     cols = Math.ceil(Math.sqrt(total * (2 / 3))); // 2:3 poster aspect ratio compensation
                     if (cols < 5) cols = 5;
                     const itemWidth = 300; // high res
-                    container.style.width = \`\${cols * itemWidth}px\`;
+                    container.style.width = `${cols * itemWidth}px`;
                     container.style.padding = '60px'; // thick border
                 }
 
@@ -166,22 +166,22 @@
                 const header = document.createElement('div');
                 header.style.marginBottom = mode === 'social' ? '30px' : '60px';
                 header.style.textAlign = 'center';
-                
-                const titleText = mode === 'social' ? 'Recent Watches' : 'Cinematic Record';
-                const countText = mode === 'social' ? \`Top \${targetItems.length}\` : \`\${targetItems.length} Films\`;
 
-                header.innerHTML = \`
-                    <h1 style="color: white; font-size: \${mode === 'social' ? '42px' : '100px'}; font-weight: 800; margin: 0; letter-spacing: -0.02em;">{{ user.name }}'s \${titleText}</h1>
-                    <p style="color: #94a3b8; font-size: \${mode === 'social' ? '24px' : '50px'}; font-weight: 600; margin-top: 10px; text-transform: uppercase; letter-spacing: 0.1em;">
-                        Watched V2 &bull; \${countText}
+                const titleText = mode === 'social' ? 'Recent Watches' : 'Cinematic Record';
+                const countText = mode === 'social' ? `Top ${targetItems.length}` : `${targetItems.length} Films`;
+
+                header.innerHTML = `
+                    <h1 style="color: white; font-size: ${mode === 'social' ? '42px' : '100px'}; font-weight: 800; margin: 0; letter-spacing: -0.02em;">{{ user.name }}'s ${titleText}</h1>
+                    <p style="color: #94a3b8; font-size: ${mode === 'social' ? '24px' : '50px'}; font-weight: 600; margin-top: 10px; text-transform: uppercase; letter-spacing: 0.1em;">
+                        Watched V2 &bull; ${countText}
                     </p>
-                \`;
+                `;
                 container.appendChild(header);
 
                 // Build Grid
                 const grid = document.createElement('div');
                 grid.style.display = 'grid';
-                grid.style.gridTemplateColumns = \`repeat(\${cols}, 1fr)\`;
+                grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
                 grid.style.gap = mode === 'social' ? '16px' : '0px'; // seamless for mosaic
                 grid.style.width = '100%';
 
@@ -195,7 +195,7 @@
                         wrap.style.borderRadius = '12px';
                         wrap.style.boxShadow = '0 10px 30px -10px rgba(0,0,0,0.5)';
                     }
-                    
+
                     const clone = document.createElement('img');
                     // Important: ensure CORS attribute is set on the clone if not already
                     clone.crossOrigin = "anonymous";
@@ -203,7 +203,7 @@
                     clone.style.width = '100%';
                     clone.style.height = '100%';
                     clone.style.objectFit = 'cover';
-                    
+
                     wrap.appendChild(clone);
                     grid.appendChild(wrap);
                 });
@@ -234,7 +234,7 @@
 
                 // Trigger download
                 const link = document.createElement('a');
-                link.download = \`Watched_\${mode}_\${new Date().toISOString().split('T')[0]}.png\`;
+                link.download = `Watched_${mode}_${new Date().toISOString().split('T')[0]}.png`;
                 link.href = canvas.toDataURL('image/png');
                 link.click();
 

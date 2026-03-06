@@ -7300,7 +7300,7 @@
 
                 // Download the file
                 const link = document.createElement('a');
-                link.download = \`Watched_Wrapped_\${window.wrappedSlidesData ? window.wrappedSlidesData.year : new Date().getFullYear()}_Slide\${currentSlide + 1}.png\`;
+                link.download = `Watched_Wrapped_${window.wrappedSlidesData ? window.wrappedSlidesData.year : new Date().getFullYear()}_Slide${currentSlide + 1}.png`;
                 link.href = canvas.toDataURL('image/png');
                 link.click();
             } catch (err) {
@@ -7375,8 +7375,8 @@
                     const hotThread = threads.find(t => t.unread_count > 0);
                     if (hotThread) {
                         fireNotification(
-                            `💬 ${ hotThread.name } `,
-                            hotThread.last_message || `${ delta } new message${ delta > 1 ? 's' : '' } `,
+                            `💬 ${hotThread.name} `,
+                            hotThread.last_message || `${delta} new message${delta > 1 ? 's' : ''} `,
                             hotThread.picture
                         );
                     }
@@ -7391,7 +7391,7 @@
                         const item = document.createElement('div');
                         item.className = 'flex items-center gap-3 p-2 hover:bg-white/5 rounded-xl cursor-pointer';
                         item.innerHTML = `
-                            ${ hotThread.picture ? `<img src="${hotThread.picture}" class="w-8 h-8 rounded-full flex-shrink-0">` : `<div class="w-8 h-8 rounded-full bg-indigo-500/30 flex items-center justify-center text-xs font-bold text-indigo-300 flex-shrink-0">${hotThread.name[0]}</div>` }
+                            ${hotThread.picture ? `<img src="${hotThread.picture}" class="w-8 h-8 rounded-full flex-shrink-0">` : `<div class="w-8 h-8 rounded-full bg-indigo-500/30 flex items-center justify-center text-xs font-bold text-indigo-300 flex-shrink-0">${hotThread.name[0]}</div>`}
                             <div class="flex-1 min-w-0">
                                 <div class="text-xs font-bold text-white">${hotThread.name}</div>
                                 <div class="text-xs text-slate-400 truncate">${hotThread.last_message || 'New message'}</div>

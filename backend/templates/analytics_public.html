@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang='en'>
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Watchlist 2025</title>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <!-- Tailwind CSS (via CDN for simplicity, verify with user if local is needed) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&amp;display=swap"
+        rel="stylesheet" />
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <!-- jsVectorMap for World Map Heatmap -->
+    <link href="https://cdn.jsdelivr.net/npm/jsvectormap/dist/css/jsvectormap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/jsvectormap"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsvectormap/dist/maps/world.js"></script>
+    <!-- Fix: jsVectorMap tooltip must render above all stacking contexts -->
+    <style>
+        .jvm-tooltip {
+            z-index: 9999 !important;
+            pointer-events: none !important;
+        }
+
+        #world-map-container svg {
+            overflow: visible !important;
+        }
+
+        @keyframes swingIn {
+            0% {
+                opacity: 0;
+                transform: rotate(-10deg) scale(0.9);
+            }
+
+            100% {
+                opacity: 1;
+                transform: rotate(0) scale(1);
+            }
+        }
+
+        @keyframes fadeInUp {
+            0% {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes scanline {
+            0% {
+                transform: translateY(-100%);
+            }
+
+            100% {
+                transform: translateY(100vh);
+            }
+        }
+
+        @keyframes logoFlicker {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            48% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+
+            52% {
+                opacity: 1;
+            }
+
+            78% {
+                opacity: 1;
+            }
+
+            80% {
+                opacity: 0.6;
+            }
+
+            82% {
+                opacity: 1;
+            }
+        }
+
+        @keyframes progressFill {
+            0% {
+                width: 0%;
+            }
+
+            80% {
+                width: 85%;
+            }
+
+            100% {
+                width: 100%;
+            }
+        }
+
+        .animate-swing {
+            animation: swingIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        .animate-up {
+            opacity: 0;
+            animation: fadeInUp 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+
+        .delay-100 {
+            animation-delay: 100ms;
+        }
+
+        .delay-200 {
+            animation-delay: 200ms;
+        }
+
+        .delay-300 {
+            animation-delay: 300ms;
+        }
+
+        .delay-400 {
+            animation-delay: 400ms;
+        }
+
+        .delay-500 {
+            animation-delay: 500ms;
+        }
+
+        .delay-600 {
+            animation-delay: 600ms;
+        }
+
+        /* Glassmorphism */
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-dark {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+
+
+        @keyframes fadeInScale {
+            0% {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .animate-swing {
+            animation: swingIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+
+        .animate-pop {
+            animation: fadeInScale 0.5s ease-out forwards;
+        }
+
+        .delay-100 {
+            animation-delay: 100ms;
+        }
+
+        .delay-200 {
+            animation-delay: 200ms;
+        }
+
+        .delay-300 {
+            animation-delay: 300ms;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #050505;
+            /* Deep cinematic black */
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+
+        /* Cinematic Skeletons */
+        @keyframes shimmer {
+            0% {
+                transform: translateX(-100%);
+            }
+
+            100% {
+                transform: translateX(100%);
+            }
+        }
+
+        .skeleton-card {
+            position: relative;
+            overflow: hidden;
+            background-color: rgba(255, 255, 255, 0.03);
+            border-radius: 1rem;
+            aspect-ratio: 2/3;
+            border: 1px solid rgba(255, 255, 255, 0.02);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .skeleton-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+
+        /* Fluid Mesh Gradient Animation */
+        @keyframes blob {
+            0% {
+                transform: translate(0px, 0px) scale(1);
+            }
+
+            33% {
+                transform: translate(30px, -50px) scale(1.1);
+            }
+
+            66% {
+                transform: translate(-20px, 20px) scale(0.9);
+            }
+
+            100% {
+                transform: translate(0px, 0px) scale(1);
+            }
+        }
+
+        .animate-blob {
+            animation: blob 15s infinite alternate ease-in-out;
+        }
+
+        .animation-delay-2000 {
+            animation-delay: 2s;
+        }
+
+        .animation-delay-4000 {
+            animation-delay: 4s;
+        }
+
+        /* Premium Glassmorphism */
+        .glass-premium {
+            background: rgba(15, 15, 20, 0.4);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        .glass-premium:hover {
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: rgba(25, 25, 30, 0.5);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.2s ease;
+        }
+
+        /* V3 Zero-State Tooltips */
+        @keyframes pulseRing {
+            0% {
+                transform: scale(0.85);
+                box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.7);
+            }
+
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 14px rgba(79, 70, 229, 0);
+            }
+
+            100% {
+                transform: scale(0.85);
+                box-shadow: 0 0 0 0 rgba(79, 70, 229, 0);
+            }
+        }
+
+        .zero-tooltip-container {
+            position: fixed;
+            z-index: 10000;
+            pointer-events: none;
+            animation: fadeInScale 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        .zero-tooltip-box {
+            background: #4f46e5;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .zero-tooltip-box::after {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #4f46e5;
+            transform: rotate(45deg);
+        }
+
+        .zero-tooltip-box.top::after {
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%) rotate(45deg);
+        }
+
+        .zero-tooltip-box.bottom::after {
+            top: -5px;
+            left: 50%;
+            transform: translateX(-50%) rotate(45deg);
+        }
+
+        .zero-tooltip-box.left::after {
+            right: -5px;
+            top: 50%;
+            transform: translateY(-50%) rotate(45deg);
+        }
+
+        .zero-tooltip-box.right::after {
+            left: -5px;
+            top: 50%;
+            transform: translateY(-50%) rotate(45deg);
+        }
+
+        .tooltip-pulse-ring {
+            position: fixed;
+            border-radius: 5px;
+            pointer-events: none;
+            z-index: 9999;
+            animation: pulseRing 2s infinite;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+
+    <style>
+        /* ... existing styles ... */
+        @keyframes swingIn {
+            0% {
+                opacity: 0;
+                transform: rotate(-10deg) scale(0.9);
+            }
+
+            100% {
+                opacity: 1;
+                transform: rotate(0) scale(1);
+            }
+        }
+
+        @keyframes fadeInUp {
+            0% {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes progress {
+            from {
+                width: 0%;
+            }
+
+            to {
+                width: 100%;
+            }
+        }
+
+        .story-progress-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+            overflow: hidden;
+            flex: 1;
+        }
+
+        .story-progress-fill {
+            height: 100%;
+            background: white;
+            width: 0%;
+        }
+
+        .story-active .story-progress-fill {
+            animation: progress linear forwards;
+        }
+
+        .paused .story-progress-fill {
+            animation-play-state: paused;
+        }
+    </style>
+    </link>
+</head>
+
+<body class="min-h-screen pb-12 selection:bg-indigo-500/30" style="background-color: #0f172a; color: white;">
+
+    <div class="flex justify-between items-center mb-8 px-4 md:px-8 mt-8 max-w-7xl mx-auto">
+        <div class="flex items-center gap-3">
+            <div class="bg-indigo-600 p-2 rounded-lg">
+                <i data-lucide="bar-chart-2" class="w-6 h-6 text-white"></i>
+            </div>
+            <span
+                class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
+                {{ user.name }}'s Cinema Stats
+            </span>
+        </div>
+        <a href="/"
+            class="bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-lg font-bold transition-all hover:scale-105 shadow-lg shadow-indigo-500/20">
+            Create Your Own
+        </a>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+        <button
+            class="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium hover:bg-white/10 transition-colors text-slate-300 group"
+            id="tab-analytics" onclick="switchTab('analytics')">
+            <i class="w-5 h-5 mr-3 group-hover:text-emerald-400 transition-colors" data-lucide="bar-chart-2"></i>
+            Analytics
+        </button>
+    </div>
+
+
+    <script>
+        lucide.createIcons();
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            try {
+                const res = await fetch(`/api/public/stats/{{ user.id }}`);
+                if (res.ok) {
+                    const stats = await res.json();
+                    console.log("Public Stats:", stats);
+                    await initPhase2Charts(stats);
+                } else {
+                    console.error("Failed to load stats");
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        });
+
+        async function initPhase2Charts(stats) {
+            // 1. World Map
+            if (stats.country_distribution && window.jsVectorMap) {
+
+                // Backend now emits clean ISO-2 codes — use directly, no frontend conversion needed
+                const rawData = Object.fromEntries(
+                    Object.entries(stats.country_distribution).filter(([k]) => k && k.trim() !== '' && k.length === 2)
+                );
+
+                if (Object.keys(rawData).length === 0) {
+                    document.getElementById('world-map-container').innerHTML = `
+                        <div class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 text-sm gap-2">
+                            <i data-lucide="map" class="w-8 h-8 text-slate-700"></i>
+                            <p>No country data yet. Keep watching!</p>
+                        </div>`;
+                    if (window.lucide) lucide.createIcons();
+                    return;
+                }
+
+                // Re-inject the vmap div fresh (avoids stale renders)
+                document.getElementById('world-map-container').innerHTML = `
+                    <div id="vmap" style="width:100%;height:100%;"></div>
+                    <div id="map-loader" class="absolute inset-0 flex items-center justify-center bg-[#0a0f1a]/60 backdrop-blur-sm rounded-xl">
+                        <div class="animate-spin w-6 h-6 border-2 border-indigo-400 border-t-transparent rounded-full"></div>
+                    </div>`;
+
+                // Normalize values to 0-100 scale relative to the max country
+                const maxVal = Math.max(...Object.values(rawData), 1);
+                const normalizedData = Object.fromEntries(
+                    Object.entries(rawData).map(([k, v]) => [k, Math.round((v / maxVal) * 100)])
+                );
+
+
+                // Update header badges
+                const totalBadge = document.getElementById('map-total-badge');
+                if (totalBadge) totalBadge.textContent = `${Object.keys(rawData).length} countries`;
+                const maxLabel = document.getElementById('map-max-label');
+                if (maxLabel) maxLabel.textContent = maxVal;
+
+                // Build countries sidebar — ALL entries so it matches the map exactly
+                const sidebarEl = document.getElementById('map-top-countries');
+                if (sidebarEl) {
+                    const sortedCountries = Object.entries(rawData).sort((a, b) => b[1] - a[1]);
+                    const COUNTRY_NAMES = {
+                        US: 'United States', GB: 'United Kingdom', FR: 'France', DE: 'Germany', JP: 'Japan',
+                        KR: 'South Korea', IT: 'Italy', ES: 'Spain', IN: 'India', CN: 'China', MX: 'Mexico',
+                        AU: 'Australia', CA: 'Canada', BR: 'Brazil', RU: 'Russia', SE: 'Sweden', DK: 'Denmark',
+                        HK: 'Hong Kong', TW: 'Taiwan', TH: 'Thailand', IR: 'Iran', NG: 'Nigeria', TR: 'Turkey',
+                        AR: 'Argentina', PL: 'Poland', IE: 'Ireland', NO: 'Norway', BE: 'Belgium', NL: 'Netherlands',
+                        PT: 'Portugal', CH: 'Switzerland', AT: 'Austria', CZ: 'Czech Republic', GR: 'Greece', FI: 'Finland',
+                        HU: 'Hungary', RO: 'Romania', ZA: 'South Africa', EG: 'Egypt', IL: 'Israel', PK: 'Pakistan',
+                        NZ: 'New Zealand', CO: 'Colombia', CL: 'Chile', PH: 'Philippines', ID: 'Indonesia',
+                        MY: 'Malaysia', VN: 'Vietnam', SG: 'Singapore', UA: 'Ukraine', SK: 'Slovakia', HR: 'Croatia',
+                        RS: 'Serbia', LU: 'Luxembourg', BG: 'Bulgaria', LB: 'Lebanon', MA: 'Morocco', KE: 'Kenya',
+                        GH: 'Ghana', ET: 'Ethiopia', SA: 'Saudi Arabia', AE: 'United Arab Emirates', QA: 'Qatar',
+                        KW: 'Kuwait', JO: 'Jordan', PE: 'Peru', VE: 'Venezuela', EC: 'Ecuador', UY: 'Uruguay',
+                        MM: 'Myanmar', KH: 'Cambodia', BD: 'Bangladesh', KP: 'North Korea',
+                    };
+                    // Fixed gradient: top = brightest, fade down
+                    const gradientStops = ['#c7d2fe', '#a5b4fc', '#818cf8', '#6366f1', '#4f46e5', '#4338ca', '#3730a3', '#312e81'];
+                    const getColor = (i, total) => {
+                        const idx = Math.round((i / Math.max(total - 1, 1)) * (gradientStops.length - 1));
+                        return gradientStops[idx];
+                    };
+                    sidebarEl.innerHTML =
+                        `<div class="text-[10px] uppercase tracking-widest text-slate-600 mb-2 font-bold">All Origins</div>` +
+                        `<div class="overflow-y-auto space-y-1.5 pr-1" style="max-height:220px;scrollbar-width:thin;">` +
+                        sortedCountries.map(([code, count], i) => {
+                            const name = COUNTRY_NAMES[code] || code;
+                            const barW = Math.round((count / maxVal) * 100);
+                            const color = getColor(i, sortedCountries.length);
+                            return `
+                            <div class="group" title="${name}: ${count} film${count !== 1 ? 's' : ''}">
+                                <div class="flex justify-between items-center mb-0.5">
+                                    <span class="text-xs text-slate-400 truncate max-w-[90px] group-hover:text-white transition-colors">${i + 1}. ${name}</span>
+                                    <span class="text-[10px] text-slate-600 ml-1 flex-shrink-0">${count}</span>
+                                </div>
+                                <div class="h-1 bg-white/5 rounded-full overflow-hidden">
+                                    <div class="h-full rounded-full transition-all duration-500" style="width:${barW}%;background:${color};"></div>
+                                </div>
+                            </div>`;
+                        }).join('') +
+                        `</div>`;
+                }
+
+
+                // Render map
+                try {
+                    new jsVectorMap({
+                        selector: '#vmap',
+                        map: 'world',
+                        backgroundColor: '#050a14',
+                        regionStyle: {
+                            initial: {
+
+                                fill: '#0f172a',
+                                fillOpacity: 1,
+                                stroke: '#1e293b',
+                                strokeWidth: 0.5,
+                                strokeOpacity: 1
+                            },
+                            hover: { fillOpacity: 0.75, cursor: 'pointer' }
+                        },
+                        series: {
+                            regions: [{
+                                attribute: 'fill',
+                                scale: { 0: '#1e293b', 10: '#312e81', 30: '#4f46e5', 60: '#818cf8', 100: '#c7d2fe' },
+                                values: normalizedData,
+                                min: 0,
+                                max: 100
+                            }]
+                        },
+                        onRegionTooltipShow(event, tooltip, code) {
+                            const count = rawData[code] || 0;
+                            const pct = maxVal ? Math.round((count / maxVal) * 100) : 0;
+                            // Use code-based lookup — tooltip.text() getter returns stale (previous region) value
+                            const TOOLTIP_NAMES = {
+                                US: 'United States', GB: 'United Kingdom', FR: 'France', DE: 'Germany', JP: 'Japan',
+                                KR: 'South Korea', IT: 'Italy', ES: 'Spain', IN: 'India', CN: 'China', MX: 'Mexico',
+                                AU: 'Australia', CA: 'Canada', BR: 'Brazil', RU: 'Russia', SE: 'Sweden', DK: 'Denmark',
+                                HK: 'Hong Kong', TW: 'Taiwan', TH: 'Thailand', IR: 'Iran', NG: 'Nigeria', TR: 'Turkey',
+                                AR: 'Argentina', PL: 'Poland', IE: 'Ireland', NO: 'Norway', BE: 'Belgium', NL: 'Netherlands',
+                                PT: 'Portugal', CH: 'Switzerland', AT: 'Austria', CZ: 'Czech Republic', GR: 'Greece', FI: 'Finland',
+                                HU: 'Hungary', RO: 'Romania', ZA: 'South Africa', EG: 'Egypt', IL: 'Israel', PK: 'Pakistan',
+                                CO: 'Colombia', CL: 'Chile', NZ: 'New Zealand', PH: 'Philippines', ID: 'Indonesia',
+                                MY: 'Malaysia', VN: 'Vietnam', SG: 'Singapore', UA: 'Ukraine', SK: 'Slovakia', HR: 'Croatia',
+                                RS: 'Serbia', LU: 'Luxembourg', BG: 'Bulgaria', LB: 'Lebanon', MA: 'Morocco', KE: 'Kenya',
+                                GH: 'Ghana', ET: 'Ethiopia', SA: 'Saudi Arabia', AE: 'United Arab Emirates', QA: 'Qatar',
+                                KW: 'Kuwait', JO: 'Jordan', PE: 'Peru', VE: 'Venezuela', EC: 'Ecuador', UY: 'Uruguay',
+                            };
+                            const countryName = TOOLTIP_NAMES[code] || code;
+                            tooltip.text(
+                                count > 0
+                                    ? `<div style="background:#0f172a;border:1px solid #334155;border-radius:10px;padding:10px 14px;min-width:140px;">
+                                           <div style="font-size:13px;font-weight:700;color:#f1f5f9;margin-bottom:6px;">${countryName}</div>
+                                           <div style="font-size:12px;color:#94a3b8;">${count} film${count !== 1 ? 's' : ''}</div>
+                                           <div style="margin-top:6px;height:3px;border-radius:2px;background:#1e293b;">
+                                               <div style="height:100%;width:${pct}%;border-radius:2px;background:linear-gradient(90deg,#4f46e5,#c7d2fe);"></div>
+                                           </div>
+                                       </div>`
+                                    : `<div style="background:#0f172a;border:1px solid #334155;border-radius:10px;padding:10px 14px;font-size:12px;color:#475569;">${countryName}: No films yet</div>`,
+                                true
+                            );
+                        }
+
+                    });
+                } catch (e) { console.error('Map render error', e); }
+
+                // Hide loader
+                const loader = document.getElementById('map-loader');
+                if (loader) loader.style.display = 'none';
+            }
+
+
+            // 2. Critic Curve Scatterplot
+            const scatterLoader = document.getElementById('scatter-loader');
+            if (scatterLoader) scatterLoader.classList.remove('hidden');
+
+            try {
+                const res = await fetch(`/api/public/analytics/scatter/{{ user.id }}`);
+                if (res && res.ok) {
+                    const data = await res.json();
+                    if (data.persona) document.getElementById('stat-persona').innerText = data.persona;
+
+                    const scatterData = data.scatter.map(d => ({
+                        x: d.popularity,
+                        y: d.user_rating,
+                        title: d.title,
+                        img: d.poster ? `https://image.tmdb.org/t/p/w92${d.poster}` : null
+                    }));
+
+                    const ctx = document.getElementById('scatterChart');
+                    if (Chart.getChart(ctx)) Chart.getChart(ctx).destroy();
+
+                    new Chart(ctx, {
+                        type: 'scatter',
+                        data: {
+                            datasets: [{
+                                label: 'Your Ratings',
+                                data: scatterData,
+                                backgroundColor: 'rgba(99, 102, 241, 0.6)',
+                                borderColor: '#818cf8',
+                                pointRadius: 6,
+                                pointHoverRadius: 8
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                x: { title: { display: true, text: 'Global Popularity (TMDB)', color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } },
+                                y: { title: { display: true, text: 'Your Rating (1-5)', color: '#64748b' }, min: 0, max: 5, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', stepSize: 1 } }
+                            },
+                            plugins: {
+                                tooltip: {
+                                    callbacks: {
+                                        label: function (ctx) {
+                                            return `${ctx.raw.title} (You: ${ctx.raw.y}, Pop: ${Math.round(ctx.raw.x)})`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error("Scatter plot error", e);
+            } finally {
+                if (scatterLoader) scatterLoader.classList.add('hidden');
+            }
+        }
+
+        // 3. Wrapped Seasonality Logic
+        const currentMonth = new Date().getMonth(); // 0 is Jan, 10 is Nov, 11 is Dec
+        const isWrappedSeasonNow = (currentMonth === 10 || currentMonth === 11 || currentMonth === 0);
+
+        if (!isWrappedSeasonNow) {
+            const btnWrap = document.getElementById('btn-launch-wrapped');
+            if (btnWrap) btnWrap.style.display = 'none';
+            const selectTime = document.getElementById('analytics-time-range');
+            if (selectTime) selectTime.style.display = 'none';
+        }
+
+        let wrappedInterval;
+        let currentSlide = 0;
+
+        async function launchWrapped() {
+            const modal = document.getElementById('wrapped-modal');
+            const container = document.getElementById('wrapped-slides-container');
+            const audio = document.getElementById('wrapped-audio');
+
+            modal.classList.remove('hidden');
+            container.innerHTML = `<div class="absolute inset-0 flex items-center justify-center bg-black"><div class="animate-spin w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full"></div></div>`;
+
+            document.body.style.overflow = 'hidden';
+
+            try {
+                audio.volume = 0.5;
+                audio.play().catch(e => console.log("Audio autoplay prevented", e));
+            } catch (e) { }
+
+            const year = document.getElementById('analytics-time-range').value === '2025' ? 2025 : new Date().getFullYear();
+            const res = await fetch(`/api/public/analytics/wrapped/{{ user.id }}/${year}`);
+
+            if (!res || !res.ok) {
+                container.innerHTML = `<div class="p-8 text-center"><h2 class="text-2xl font-bold mb-4">No data for ${year}</h2><button onclick="closeWrapped()" class="bg-indigo-600 px-4 py-2 rounded-lg">Close</button></div>`;
+                return;
+            }
+
+            const data = await res.json();
+
+            if (data.error) {
+                container.innerHTML = `
+                <div class="p-8 text-center text-white flex flex-col items-center justify-center h-full">
+                    <i data-lucide="calendar-x" class="w-16 h-16 text-slate-500 mb-6"></i>
+                    <h2 class="text-3xl font-black mb-4">No data for ${year} yet!</h2>
+                    <p class="text-slate-400 mb-8 max-w-sm">You haven't logged enough movies this year. But don't worry, you can select <strong class="text-white">2025 Year in Review</strong> from the dropdown next to the button to view your past history!</p>
+                    <button onclick="closeWrapped()" class="bg-indigo-600 hover:bg-indigo-500 transition-colors px-6 py-3 rounded-full font-bold shadow-lg shadow-indigo-500/25">Return to Reality</button>
+                </div>`;
+                if (window.lucide) lucide.createIcons();
+                return;
+            }
+
+            const slides = [
+                /* Slide 1: Welcome */
+                `
+            <div class="absolute inset-0 bg-gradient-to-br from-indigo-900 to-black p-8 flex flex-col justify-center items-center text-center animate-up">
+                <h3 class="text-indigo-400 font-bold tracking-widest uppercase mb-4 text-sm">Your ${year} in Film</h3>
+                <h2 class="text-6xl font-black text-white mb-6 leading-tight">${data.total_minutes.toLocaleString()}<br><span class="text-2xl text-slate-400">Minutes Played</span></h2>
+                <p class="text-xl text-slate-300 italic">"${data.commentary[0] || 'A solid year of cinema.'}"</p>
+            </div>
+            `,
+                /* Slide 2: Top Genres */
+                `
+            <div class="absolute inset-0 bg-gradient-to-tr from-purple-900 to-black p-8 flex flex-col justify-center items-center text-center animate-up">
+                <h3 class="text-purple-400 font-bold tracking-widest uppercase mb-4 text-sm">Top Genres</h3>
+                <div class="space-y-6 w-full max-w-xs">
+                    ${data.top_genres.map((g, i) => `
+                        <div class="bg-white/10 rounded-xl p-4 flex justify-between items-center backdrop-blur-md border border-white/5 shadow-2xl">
+                            <span class="text-2xl font-black text-white">#${i + 1}</span>
+                            <span class="text-xl font-bold text-slate-200">${g[0]}</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <p class="text-lg text-slate-300 italic mt-8">"${data.commentary[1] || 'Eclectic taste indeed.'}"</p>
+            </div>
+            `,
+                /* Slide 3: Screen Format Split */
+                `
+            <div class="absolute inset-0 bg-gradient-to-bl from-rose-900 to-black p-8 flex flex-col justify-center items-center text-center animate-up">
+                <h3 class="text-rose-400 font-bold tracking-widest uppercase mb-4 text-sm">The Screen Split</h3>
+                <div class="flex gap-4 mb-8">
+                    <div class="bg-black/40 p-6 rounded-2xl flex-1 border border-white/10">
+                        <div class="text-4xl font-black text-white mb-2">${data.movies_count}</div>
+                        <div class="text-xs text-slate-400 uppercase tracking-widest">Movies</div>
+                    </div>
+                    <div class="bg-black/40 p-6 rounded-2xl flex-1 border border-white/10">
+                        <div class="text-4xl font-black text-white mb-2">${data.tv_count}</div>
+                        <div class="text-xs text-slate-400 uppercase tracking-widest">TV Seasons</div>
+                    </div>
+                </div>
+            </div>
+            `,
+            ];
+
+            if (data.longest_item) {
+                slides.push(`
+                <div class="absolute inset-0 bg-gradient-to-tr from-orange-900 to-black p-8 flex flex-col justify-center items-center text-center animate-up">
+                    <h3 class="text-orange-400 font-bold tracking-widest uppercase mb-4 text-sm">Longest Session</h3>
+                    ${data.longest_item.poster ? `<img src="${data.longest_item.poster}" class="w-32 h-48 object-cover rounded-xl border border-white/20 shadow-2xl mb-8">` : ''}
+                    <h2 class="text-3xl font-black text-white mb-2 leading-tight">${data.longest_item.title}</h2>
+                    <p class="text-xl text-slate-300">A grueling ${data.longest_item.runtime} minutes.</p>
+                </div>
+                `);
+            }
+
+            if (data.top_actors && data.top_actors.length > 0) {
+                slides.push(`
+                <div class="absolute inset-0 bg-gradient-to-bl from-blue-900 to-black p-8 flex flex-col justify-center items-center text-center animate-up">
+                    <h3 class="text-blue-400 font-bold tracking-widest uppercase mb-4 text-sm">Most Watched Star</h3>
+                    <div class="w-24 h-24 rounded-full bg-blue-500/20 flex flex-col items-center justify-center border border-blue-500/50 mb-6 shadow-[0_0_50px_rgba(59,130,246,0.3)]">
+                        <i data-lucide="star" class="w-10 h-10 text-blue-400"></i>
+                    </div>
+                    <h2 class="text-4xl font-black text-white mb-2 leading-tight">${data.top_actors[0][0]}</h2>
+                    <p class="text-slate-300">Appeared in ${data.top_actors[0][1]} of your watches.</p>
+                </div>
+                `);
+            }
+
+            slides.push(`
+            <div class="absolute inset-0 bg-gradient-to-bl from-emerald-900 to-black p-8 flex flex-col justify-center items-center text-center animate-up">
+                <div class="w-32 h-32 rounded-full bg-emerald-500/20 flex items-center justify-center mb-8 border border-emerald-500/50 shadow-[0_0_50px_rgba(16,185,129,0.3)]">
+                    <i data-lucide="crown" class="w-16 h-16 text-emerald-400"></i>
+                </div>
+                <h3 class="text-emerald-400 font-bold tracking-widest uppercase mb-4 text-sm">Global Rank</h3>
+                <h2 class="text-4xl font-black text-white mb-4 line-clamp-2">${data.ranking}</h2>
+                <p class="text-slate-400 max-w-xs mx-auto">You've explored more cinematic worlds than most. Ready for what's next?</p>
+            </div>
+            `);
+
+            const pbContainer = document.getElementById('wrapped-progress-container');
+            if (pbContainer) {
+                pbContainer.innerHTML = slides.map((_, i) => `
+                    <div id="wrapped-progress-${i + 1}" class="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
+                        <div class="h-full bg-white w-0"></div>
+                    </div>
+                `).join('');
+            }
+
+            window.wrappedSlides = slides;
+            currentSlide = 0;
+            showSlide(0);
+        }
+
+        function showSlide(index) {
+            if (index >= window.wrappedSlides.length) {
+                closeWrapped();
+                return;
+            }
+
+            const container = document.getElementById('wrapped-slides-container');
+            container.innerHTML = window.wrappedSlides[index];
+            if (window.lucide) lucide.createIcons();
+
+            for (let i = 1; i <= window.wrappedSlides.length; i++) {
+                const barContainer = document.getElementById(`wrapped-progress-${i}`);
+                if (!barContainer) continue;
+                const bar = barContainer.querySelector('div');
+                // Remove transition for instant reset
+                bar.style.transition = 'none';
+                bar.style.width = i <= index ? '100%' : '0%';
+            }
+
+            setTimeout(() => {
+                const currentBar = document.getElementById(`wrapped-progress-${index + 1}`)?.querySelector('div');
+                if (currentBar) {
+                    currentBar.style.transition = 'width 5000ms linear';
+                    currentBar.style.width = '100%';
+                }
+            }, 50);
+
+            clearTimeout(wrappedInterval);
+            wrappedInterval = setTimeout(() => {
+                nextWrappedSlide();
+            }, 5000);
+        }
+
+        function nextWrappedSlide() {
+            currentSlide++;
+            showSlide(currentSlide);
+        }
+
+        async function downloadStorySlide(event) {
+            // Prevent clicking the button from advancing the slide
+            event.stopPropagation();
+
+            const btn = document.getElementById('wrapped-save-btn');
+            const origHTML = btn.innerHTML;
+            const container = document.getElementById('wrapped-slides-container');
+
+            try {
+                // Visual feedback
+                btn.innerHTML = '<div class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>';
+                btn.style.pointerEvents = 'none';
+
+                // Ensure any TMDB images inside the slide have crossorigin attr set
+                const images = container.querySelectorAll('img');
+                images.forEach(img => { img.crossOrigin = "anonymous"; });
+
+                // We capture the slides container exactly as it appears
+                const canvas = await html2canvas(container, {
+                    useCORS: true,
+                    allowTaint: false,
+                    backgroundColor: '#0f172a', // standard slate-900 fallback
+                    scale: 2 // High res export
+                });
+
+                // Download the file
+                const link = document.createElement('a');
+                link.download = `Watched_Wrapped_${window.wrappedSlidesData ? window.wrappedSlidesData.year : new Date().getFullYear()}_Slide${currentSlide + 1}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            } catch (err) {
+                console.error("Export failed:", err);
+                showToast("Failed to save image. Try again.");
+            } finally {
+                // Restore button state
+                btn.innerHTML = origHTML;
+                btn.style.pointerEvents = 'auto';
+                if (window.lucide) lucide.createIcons();
+            }
+        }
+
+        function closeWrapped() {
+            clearTimeout(wrappedInterval);
+            document.getElementById('wrapped-modal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+            try {
+                document.getElementById('wrapped-audio').pause();
+                document.getElementById('wrapped-audio').currentTime = 0;
+            } catch (e) { }
+        }
+
+        function loadAnalytics() {
+            init(); // Refresh data grid based on newly selected value
+        }
+
+    </script>
+</body>
+
+</html>
