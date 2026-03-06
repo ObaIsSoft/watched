@@ -2440,13 +2440,33 @@ def get_weekly_stats(db: Session = Depends(get_db), current_user: User = Depends
         
         for item in history:
             if item.cast:
-                for c in item.cast.split(','):
-                    c = c.strip()
-                    if c: cast_c[c] += 1
+                try:
+                    # Parse the JSON list of cast objects
+                    cast_list = json.loads(item.cast)
+                    for c in cast_list:
+                        name = c.get('name')
+                        if name: cast_c[name] += 1
+                except:
+                    # Fallback if it's stored as simple string or comma-separated
+                    for c in item.cast.split(','):
+                        c = c.strip()
+                        if c: cast_c[c] += 1
+                        
             if item.crew:
-                for c in item.crew.split(','):
-                    c = c.strip()
-                    if c: crew_c[c] += 1
+                try:
+                    # Parse the JSON list of crew objects, extracting the director
+                    crew_list = json.loads(item.crew)
+                    for c in crew_list:
+                        # Only count directors
+                        if c.get('job') == 'Director':
+                            name = c.get('name')
+                            if name: crew_c[name] += 1
+                except:
+                    # Fallback for old comma-separated data
+                    for c in item.crew.split(','):
+                        c = c.strip()
+                        if c: crew_c[c] += 1
+                        
             if item.title:
                 movies.append({
                     "title": item.title,

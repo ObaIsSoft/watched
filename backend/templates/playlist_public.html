@@ -7,6 +7,8 @@
     <title>{{ playlist.name }} - Watched V2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Add html2canvas -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
         body {
             background-color: #0f172a;
@@ -32,7 +34,7 @@
 <body class="min-h-screen p-4 md:p-8">
     <div class="max-w-6xl mx-auto">
         <!-- Header -->
-        <div class="flex justify-between items-center mb-12">
+        <div class="flex justify-between items-center mb-12 flex-wrap gap-4">
             <div class="flex items-center gap-3">
                 <div class="bg-indigo-600 p-2 rounded-lg">
                     <i data-lucide="play-circle" class="w-6 h-6 text-white"></i>
@@ -41,10 +43,34 @@
                     class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Watched
                     V2</span>
             </div>
-            <a href="/"
-                class="bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-lg font-bold transition-all hover:scale-105 shadow-lg shadow-indigo-500/20">
-                Join / Login
-            </a>
+
+            <div class="flex items-center gap-3">
+                <div class="relative">
+                    <button id="export-dropdown-btn" onclick="toggleExportDropdown()"
+                        class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-lg font-bold transition-colors flex items-center gap-2">
+                        <i data-lucide="image" class="w-4 h-4"></i>
+                        <span id="export-btn-text">Export Image</span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 ml-1"></i>
+                    </button>
+                    <!-- Dropdown Menu -->
+                    <div id="export-dropdown-menu"
+                        class="hidden absolute right-0 mt-2 w-56 bg-slate-800 border border-slate-700 rounded-xl shadow-xl overflow-hidden z-50">
+                        <button onclick="exportAsImage('social')"
+                            class="w-full text-left px-4 py-3 hover:bg-slate-700 flex flex-col transition-colors border-b border-slate-700">
+                            <span class="font-bold text-sm text-white">Social Collage</span>
+                            <span class="text-xs text-slate-400 mt-0.5">Top 20 items for Instagram/Twitter</span>
+                        </button>
+                        <button onclick="exportAsImage('mosaic')"
+                            class="w-full text-left px-4 py-3 hover:bg-slate-700 flex flex-col transition-colors">
+                            <span class="font-bold text-sm text-indigo-400">Cinematic Mosaic</span>
+                            <span class="text-xs text-slate-400 mt-0.5">Stitch all items into massive tapestry</span>
+                        </button>
+                    </div>
+                </div>
+                <!-- <a href="/" class="bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-lg font-bold transition-all hover:scale-105 shadow-lg shadow-indigo-500/20">
+                    Join / Login
+                </a> -->
+            </div>
         </div>
 
         <!-- Playlist Info -->
@@ -121,6 +147,156 @@
 
     <script>
         lucide.createIcons();
+
+        // --- IMAGE EXPORT ENGINES ---
+        let isExporting = false;
+
+        function toggleExportDropdown() {
+            const menu = document.getElementById('export-dropdown-menu');
+            menu.classList.toggle('hidden');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            const btn = document.getElementById('export-dropdown-btn');
+            const menu = document.getElementById('export-dropdown-menu');
+            if (btn && menu && !btn.contains(e.target) && !menu.contains(e.target)) {
+                menu.classList.add('hidden');
+            }
+        });
+
+        async function exportAsImage(mode) {
+            if (isExporting) return;
+            isExporting = true;
+            document.getElementById('export-dropdown-menu').classList.add('hidden');
+
+            const origButtonText = document.getElementById('export-btn-text').innerText;
+            document.getElementById('export-btn-text').innerText = "Processing...";
+
+            try {
+                // Get all poster images on the page
+                const posters = Array.from(document.querySelectorAll('.glass img'));
+                if (posters.length === 0) {
+                    alert("No posters found to export.");
+                    return;
+                }
+
+                // Create the off-screen plotting container
+                const container = document.createElement('div');
+                container.style.position = 'fixed';
+                container.style.top = '-9999px';
+                container.style.left = '-9999px';
+                container.style.backgroundColor = '#050a14'; // Dark cinematic background
+                container.style.display = 'flex';
+                container.style.flexDirection = 'column';
+                container.style.fontFamily = "'Inter', sans-serif";
+
+                let targetItems = [];
+                let cols, rows;
+
+                if (mode === 'social') {
+                    // MODE 1: Social Collage (Top 20 max)
+                    targetItems = posters.slice(0, 20);
+                    // 4 cols x 5 rows max
+                    cols = Math.min(4, targetItems.length);
+                    container.style.width = '1080px'; // Instagram portrait width
+                    container.style.padding = '40px';
+                } else if (mode === 'mosaic') {
+                    // MODE 2: Massive Mosaic (All items)
+                    targetItems = posters;
+                    // Calculate optimal square-ish grid
+                    const total = targetItems.length;
+                    cols = Math.ceil(Math.sqrt(total * (2 / 3))); // 2:3 poster aspect ratio compensation
+                    if (cols < 5) cols = 5;
+                    const itemWidth = 300; // high res
+                    container.style.width = \`\${cols * itemWidth}px\`;
+                    container.style.padding = '60px'; // thick border
+                }
+
+                // Build header
+                const header = document.createElement('div');
+                header.style.marginBottom = mode === 'social' ? '30px' : '60px';
+                header.style.textAlign = 'center';
+                
+                const titleText = '{{ playlist.name|replace("'", "\\'") }}';
+                const countText = mode === 'social' ? \`Top \${targetItems.length}\` : \`\${targetItems.length} Films\`;
+
+                header.innerHTML = \`
+                    <h1 style="color: white; font-size: \${mode === 'social' ? '42px' : '100px'}; font-weight: 800; margin: 0; letter-spacing: -0.02em;">\${titleText}</h1>
+                    <p style="color: #94a3b8; font-size: \${mode === 'social' ? '24px' : '50px'}; font-weight: 600; margin-top: 10px; text-transform: uppercase; letter-spacing: 0.1em;">
+                        Curated by {{ creator_name }} &bull; \${countText}
+                    </p>
+                \`;
+                container.appendChild(header);
+
+                // Build Grid
+                const grid = document.createElement('div');
+                grid.style.display = 'grid';
+                grid.style.gridTemplateColumns = \`repeat(\${cols}, 1fr)\`;
+                grid.style.gap = mode === 'social' ? '16px' : '0px'; // seamless for mosaic
+                grid.style.width = '100%';
+
+                // Clone posters into grid
+                targetItems.forEach(img => {
+                    const wrap = document.createElement('div');
+                    wrap.style.aspectRatio = '2/3';
+                    wrap.style.width = '100%';
+                    wrap.style.overflow = 'hidden';
+                    if (mode === 'social') {
+                        wrap.style.borderRadius = '12px';
+                        wrap.style.boxShadow = '0 10px 30px -10px rgba(0,0,0,0.5)';
+                    }
+                    
+                    const clone = document.createElement('img');
+                    // Important: ensure CORS attribute is set on the clone if not already
+                    clone.crossOrigin = "anonymous";
+                    clone.src = img.src;
+                    clone.style.width = '100%';
+                    clone.style.height = '100%';
+                    clone.style.objectFit = 'cover';
+                    
+                    wrap.appendChild(clone);
+                    grid.appendChild(wrap);
+                });
+
+                container.appendChild(grid);
+                document.body.appendChild(container);
+
+                // Ensure all cloned images are fully loaded before capturing
+                const clones = Array.from(container.querySelectorAll('img'));
+                await Promise.all(clones.map(img => {
+                    if (img.complete) return Promise.resolve();
+                    return new Promise((resolve, reject) => {
+                        img.onload = resolve;
+                        img.onerror = resolve; // Continue even if one fails
+                    });
+                }));
+
+                // Capture using html2canvas
+                const canvas = await html2canvas(container, {
+                    useCORS: true,
+                    allowTaint: false,
+                    backgroundColor: '#050a14',
+                    scale: mode === 'social' ? 2 : 1 // High fidelity for social, standard for massive mosaic to prevent memory crash
+                });
+
+                // Cleanup
+                document.body.removeChild(container);
+
+                // Trigger download
+                const link = document.createElement('a');
+                link.download = \`Watched_Playlist_\${mode}_\${new Date().toISOString().split('T')[0]}.png\`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+
+            } catch (err) {
+                console.error("Export failed:", err);
+                alert("Image export failed. See console for details.");
+            } finally {
+                isExporting = false;
+                document.getElementById('export-btn-text').innerText = origButtonText;
+            }
+        }
     </script>
 </body>
 
