@@ -7349,11 +7349,6 @@
 
         // ─── PHASE 2 CHARTS ─────────────────────────────────────────────────────────────
 
-        async function initPhase2Charts(stats) {
-            buildBasicCharts(stats);
-            // Other Phase 2 charts can go here
-        }
-
         function buildBasicCharts(stats) {
             // Re-render Basic Charts that were deferred (Format, Era, Runtime)
             const fmtTotal = (stats.counts?.movies || 0) + (stats.counts?.series || 0);

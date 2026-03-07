@@ -1699,6 +1699,29 @@
                 });
                 await Promise.all(imagePromises);
 
+                // ─── SVG RASTERIZATION HACK TO PREVENT HTML2CANVAS FREEZE ───
+                const mapSvg = container.querySelector('#vmap svg');
+                let mapImgCache = null;
+                if (mapSvg) {
+                    try {
+                        const serializer = new XMLSerializer();
+                        const svgStr = serializer.serializeToString(mapSvg);
+                        // Encode to base64 to avoid special character escaping issues in data URIs
+                        const b64 = btoa(unescape(encodeURIComponent(svgStr)));
+                        mapImgCache = document.createElement('img');
+                        mapImgCache.src = 'data:image/svg+xml;base64,' + b64;
+                        mapImgCache.style.width = '100%';
+                        mapImgCache.style.height = '100%';
+                        mapImgCache.id = 'vmap-rasterized-clone';
+
+                        // Wait for the base64 image to actually decode memory before snapping
+                        await new Promise(res => { mapImgCache.onload = res; mapImgCache.onerror = res; });
+
+                        mapSvg.style.display = 'none'; // Hide the SVG so html2canvas ignores it
+                        document.getElementById('vmap').appendChild(mapImgCache);
+                    } catch (e) { console.error("SVG Serialization error", e); }
+                }
+
                 const canvas = await html2canvas(container, {
                     backgroundColor: '#0f172a', // Match slate-900 background of the dashboard
                     scale: window.innerWidth > 768 ? 2 : 1, // High res for desktop, standard for mobile to prevent freezing
@@ -1728,6 +1751,12 @@
                 console.error("Failed to export full page:", err);
                 alert("Failed to export the page. Please try again.");
             } finally {
+                // Restore original SVG map
+                const raster = document.getElementById('vmap-rasterized-clone');
+                if (raster) raster.remove();
+                const originalSvg = container.querySelector('#vmap svg');
+                if (originalSvg) originalSvg.style.display = 'block';
+
                 btn.innerHTML = originalHTML;
                 if (window.lucide) lucide.createIcons();
             }
