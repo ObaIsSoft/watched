@@ -199,7 +199,10 @@
                     const clone = document.createElement('img');
                     // Important: ensure CORS attribute is set on the clone if not already
                     clone.crossOrigin = "anonymous";
-                    clone.src = img.src;
+                    // Bypass browser cache to ensure CORS headers are fresh
+                    const srcUrl = new URL(img.src, window.location.origin);
+                    srcUrl.searchParams.set('cors_bust', new Date().getTime());
+                    clone.src = srcUrl.href;
                     clone.style.width = '100%';
                     clone.style.height = '100%';
                     clone.style.objectFit = 'cover';

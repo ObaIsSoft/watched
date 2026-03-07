@@ -3387,14 +3387,9 @@
                             <span class="text-xs text-slate-600 ml-1">${fmtTotal ? Math.round(count / fmtTotal * 100) : 0}%</span>
                         </div>
                     </div>`).join('');
-                new Chart(document.getElementById('formatChart'), {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Movies', 'Series'],
-                        datasets: [{ data: [movies, series], backgroundColor: ['#818cf8', '#a855f7'], hoverBackgroundColor: ['#a5b4fc', '#c084fc'], borderWidth: 3, borderColor: 'transparent', borderRadius: 6 }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, cutout: '72%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} (${fmtTotal ? Math.round(ctx.raw / fmtTotal * 100) : 0}%)` } } }, animation: { animateRotate: true, duration: 900 } }
-                });
+
+                // Store stats for charts
+                window.lastStats = stats;
 
                 // ── C. ACTIVITY HEATMAP — GitHub-style with month labels ──────────────
                 const activityContainer = document.getElementById('activity-heatmap-container');
@@ -3481,57 +3476,6 @@
                 </div>`;
 
                 if (activityContainer) activityContainer.innerHTML = monthRow + grid + legend;
-
-                // D. Eras (Bar)
-                destroyChart('eraChart');
-                new Chart(document.getElementById('eraChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: stats.decade_distribution.map(d => d[0]),
-                        datasets: [{
-                            label: 'Items',
-                            data: stats.decade_distribution.map(d => d[1]),
-                            backgroundColor: '#fcd34d',
-                            borderRadius: 4
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: {
-                            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', precision: 0 } },
-                            x: { grid: { display: false }, ticks: { color: '#64748b' } }
-                        }
-                    }
-                });
-
-                // E. Runtime Distribution (Bar)
-                if (stats.runtime_distribution) {
-                    destroyChart('runtimeChart');
-                    new Chart(document.getElementById('runtimeChart'), {
-                        type: 'bar',
-                        data: {
-                            labels: Object.keys(stats.runtime_distribution),
-                            datasets: [{
-                                label: 'Items',
-                                data: Object.values(stats.runtime_distribution),
-                                backgroundColor: ['#34d399', '#facc15', '#f87171'],
-                                borderRadius: 6,
-                                barPercentage: 0.6
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: {
-                                y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', precision: 0 } },
-                                x: { grid: { display: false }, ticks: { color: '#64748b' } }
-                            }
-                        }
-                    });
-                }
 
                 // Save stats globally for deferred loading
                 window.lastStats = stats;
@@ -7286,9 +7230,16 @@
                 btn.innerHTML = '<div class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>';
                 btn.style.pointerEvents = 'none';
 
-                // Ensure any TMDB images inside the slide have crossorigin attr set
+                // Ensure any TMDB images inside the slide have crossorigin attr set and bypass cache
                 const images = container.querySelectorAll('img');
-                images.forEach(img => { img.crossOrigin = "anonymous"; });
+                images.forEach(img => {
+                    img.crossOrigin = "anonymous";
+                    if (img.src && !img.src.includes('cors_bust')) {
+                        const srcUrl = new URL(img.src, window.location.origin);
+                        srcUrl.searchParams.set('cors_bust', new Date().getTime());
+                        img.src = srcUrl.href;
+                    }
+                });
 
                 // We capture the slides container exactly as it appears
                 const canvas = await html2canvas(container, {
@@ -7322,6 +7273,81 @@
                 document.getElementById('wrapped-audio').pause();
                 document.getElementById('wrapped-audio').currentTime = 0;
             } catch (e) { }
+        }
+
+        // ─── PHASE 2 CHARTS ─────────────────────────────────────────────────────────────
+
+        async function initPhase2Charts(stats) {
+            buildBasicCharts(stats);
+            // Other Phase 2 charts can go here
+        }
+
+        function buildBasicCharts(stats) {
+            // Re-render Basic Charts that were deferred (Format, Era, Runtime)
+            const fmtTotal = (stats.counts?.movies || 0) + (stats.counts?.series || 0);
+
+            if (document.getElementById('formatChart')) {
+                destroyChart('formatChart');
+                new Chart(document.getElementById('formatChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Movies', 'Series'],
+                        datasets: [{ data: [stats.counts?.movies || 0, stats.counts?.series || 0], backgroundColor: ['#818cf8', '#a855f7'], hoverBackgroundColor: ['#a5b4fc', '#c084fc'], borderWidth: 3, borderColor: 'transparent', borderRadius: 6 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, cutout: '72%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} (${fmtTotal ? Math.round(ctx.raw / fmtTotal * 100) : 0}%)` } } }, animation: { animateRotate: true, duration: 900 } }
+                });
+            }
+
+            if (document.getElementById('eraChart') && stats.decade_distribution) {
+                destroyChart('eraChart');
+                new Chart(document.getElementById('eraChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: stats.decade_distribution.map(d => d[0]),
+                        datasets: [{
+                            label: 'Items',
+                            data: stats.decade_distribution.map(d => d[1]),
+                            backgroundColor: '#fcd34d',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', precision: 0 } },
+                            x: { grid: { display: false }, ticks: { color: '#64748b' } }
+                        }
+                    }
+                });
+            }
+
+            if (document.getElementById('runtimeChart') && stats.runtime_distribution) {
+                destroyChart('runtimeChart');
+                new Chart(document.getElementById('runtimeChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(stats.runtime_distribution),
+                        datasets: [{
+                            label: 'Items',
+                            data: Object.values(stats.runtime_distribution),
+                            backgroundColor: ['#34d399', '#facc15', '#f87171'],
+                            borderRadius: 6,
+                            barPercentage: 0.6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', precision: 0 } },
+                            x: { grid: { display: false }, ticks: { color: '#64748b' } }
+                        }
+                    }
+                });
+            }
         }
 
         // ─── Browser Notifications ──────────────────────────────────────────────
