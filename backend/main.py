@@ -2486,7 +2486,10 @@ def get_weekly_stats(offset_weeks: int = 0, db: Session = Depends(get_db), curre
                     try:
                         crew_list = json.loads(item.crew)
                         for c in crew_list:
-                            if c.get('job') == 'Director':
+                            job = c.get('job', '')
+                            role = c.get('role', '')
+                            dept = c.get('department', '')
+                            if job == 'Director' or role == 'Director' or job == 'Directing' or dept == 'Directing':
                                 name = c.get('name')
                                 if name: crew_c[name] += 1
                     except:
@@ -2566,7 +2569,10 @@ def get_public_weekly_stats(user_id: int, offset_weeks: int = 0, db: Session = D
                     try:
                         crew_list = json.loads(item.crew)
                         for c in crew_list:
-                            if c.get('job') == 'Director':
+                            job = c.get('job', '')
+                            role = c.get('role', '')
+                            dept = c.get('department', '')
+                            if job == 'Director' or role == 'Director' or job == 'Directing' or dept == 'Directing':
                                 name = c.get('name')
                                 if name: crew_c[name] += 1
                     except:

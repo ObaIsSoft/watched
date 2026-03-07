@@ -1532,21 +1532,21 @@
             let moviesHtml = movies.slice(0, 5).map((m, i) => `
                 <div style="display: flex; align-items: flex-start; gap: 20px; margin-bottom: ${isDesktop ? '30px' : '20px'}; font-size: ${isDesktop ? '42px' : '28px'}; font-weight: 800; color: white; line-height: 1.4;">
                     <span style="min-width: ${isDesktop ? '45px' : '30px'}; color: #f5d0c5;">${i + 1}</span>
-                    <span style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: ${isDesktop ? '380px' : '240px'}; padding-bottom: 12px;">${m.title}</span>
+                    <span style="display: block; max-width: ${isDesktop ? '380px' : '240px'}; padding-bottom: 12px; line-height: 1.2;">${m.title.length > (isDesktop ? 26 : 16) ? m.title.substring(0, (isDesktop ? 26 : 16)) + '...' : m.title}</span>
                 </div>
             `).join('');
 
             let actorsHtml = actors.slice(0, 5).map((a, i) => `
                 <div style="display: flex; align-items: flex-start; gap: 20px; margin-bottom: ${isDesktop ? '30px' : '20px'}; font-size: ${isDesktop ? '42px' : '28px'}; font-weight: 800; color: white; line-height: 1.4;">
                     <span style="min-width: ${isDesktop ? '45px' : '30px'}; color: #f5d0c5;">${i + 1}</span>
-                    <span style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: ${isDesktop ? '380px' : '240px'}; padding-bottom: 12px;">${a.name}</span>
+                    <span style="display: block; max-width: ${isDesktop ? '380px' : '240px'}; padding-bottom: 12px; line-height: 1.2;">${a.name.length > (isDesktop ? 26 : 16) ? a.name.substring(0, (isDesktop ? 26 : 16)) + '...' : a.name}</span>
                 </div>
             `).join('');
 
             let directorsHtml = directors.slice(0, 5).map((d, i) => `
                 <div style="display: flex; align-items: flex-start; gap: 20px; margin-bottom: ${isDesktop ? '30px' : '20px'}; font-size: ${isDesktop ? '42px' : '28px'}; font-weight: 800; color: white; line-height: 1.4;">
                     <span style="min-width: ${isDesktop ? '45px' : '30px'}; color: #f5d0c5;">${i + 1}</span>
-                    <span style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: ${isDesktop ? '380px' : '240px'}; padding-bottom: 12px;">${d.name}</span>
+                    <span style="display: block; max-width: ${isDesktop ? '380px' : '240px'}; padding-bottom: 12px; line-height: 1.2;">${d.name.length > (isDesktop ? 26 : 16) ? d.name.substring(0, (isDesktop ? 26 : 16)) + '...' : d.name}</span>
                 </div>
             `).join('');
 
