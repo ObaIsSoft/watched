@@ -2515,6 +2515,71 @@ def get_weekly_stats(db: Session = Depends(get_db), current_user: User = Depends
         "last_week": get_week_stats(last_week_start, last_week_end),
     }
 
+@app.get("/api/public/stats/weekly/{user_id}")
+def get_public_weekly_stats(user_id: int, db: Session = Depends(get_db)):
+    # Same logic as get_weekly_stats but for a specific user ID
+    now = datetime.utcnow()
+    week_start = now - timedelta(days=7)
+    last_week_start = week_start - timedelta(days=7)
+    last_week_end = week_start
+
+    def get_week_stats(start, end):
+        history = db.query(WatchHistory).filter(
+            WatchHistory.user_id == user_id,
+            WatchHistory.status == 'watched',
+            WatchHistory.watched_at >= start,
+            WatchHistory.watched_at < end
+        ).order_by(desc(WatchHistory.watched_at)).all()
+        
+        movies = []
+        cast_c = Counter()
+        crew_c = Counter()
+        
+        for item in history:
+            if item.cast:
+                try:
+                    cast_list = json.loads(item.cast)
+                    for c in cast_list:
+                        name = c.get('name')
+                        if name: cast_c[name] += 1
+                except:
+                    for c in item.cast.split(','):
+                        c = c.strip()
+                        if c: cast_c[c] += 1
+                        
+            if item.crew:
+                try:
+                    crew_list = json.loads(item.crew)
+                    for c in crew_list:
+                        if c.get('job') == 'Director':
+                            name = c.get('name')
+                            if name: crew_c[name] += 1
+                except:
+                    for c in item.crew.split(','):
+                        c = c.strip()
+                        if c: crew_c[c] += 1
+                        
+            if item.title:
+                movies.append({
+                    "title": item.title,
+                    "poster_path": item.poster_path,
+                    "tmdb_id": item.tmdb_id,
+                    "media_type": item.media_type or "movie",
+                    "rating": item.rating,
+                })
+        
+        return {
+            "top_movies": movies[:5],
+            "top_actors": [{"name": n, "count": c} for n, c in cast_c.most_common(5)],
+            "top_directors": [{"name": n, "count": c} for n, c in crew_c.most_common(5)],
+            "total_watched": len(history),
+            "week_label": start.strftime("%d %b")
+        }
+    
+    return {
+        "this_week": get_week_stats(week_start, now),
+        "last_week": get_week_stats(last_week_start, last_week_end),
+    }
 
 async def fetch_trending_content():
     async with httpx.AsyncClient() as client:

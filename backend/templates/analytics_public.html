@@ -2,6 +2,7 @@
 <html lang='en'>
 
 <head>
+    <link rel="icon" type="image/svg+xml" href="/favicon.ico">
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <title>Watchlist 2025</title>
@@ -530,14 +531,51 @@
                 </div>
                 <div id="weekly-top5-list" class="p-4">
                     <div class="animate-pulse space-y-3">
-                        ${Array.from({length:5}, (_,i) => `<div class="flex items-center gap-3">
-                            <div class="w-6 text-slate-600 font-black text-sm">${i+1}</div>
+                        <!-- Stat Loader 1 -->
+                        <div class="flex items-center gap-3">
+                            <div class="w-6 text-slate-600 font-black text-sm">1</div>
                             <div class="w-10 h-14 bg-white/5 rounded-lg"></div>
                             <div class="flex-1 space-y-2">
-                                <div class="h-3 bg-white/5 rounded w-3/4"></div>
-                                <div class="h-2 bg-white/5 rounded w-1/2"></div>
+                                <div class="h-3 bg-white/10 rounded w-2/3"></div>
+                                <div class="h-2 bg-white/5 rounded w-1/3"></div>
                             </div>
-                        </div>`).join('')}
+                        </div>
+                        <!-- Stat Loader 2 -->
+                        <div class="flex items-center gap-3">
+                            <div class="w-6 text-slate-600 font-black text-sm">2</div>
+                            <div class="w-10 h-14 bg-white/5 rounded-lg"></div>
+                            <div class="flex-1 space-y-2">
+                                <div class="h-3 bg-white/10 rounded w-2/3"></div>
+                                <div class="h-2 bg-white/5 rounded w-1/3"></div>
+                            </div>
+                        </div>
+                        <!-- Stat Loader 3 -->
+                        <div class="flex items-center gap-3">
+                            <div class="w-6 text-slate-600 font-black text-sm">3</div>
+                            <div class="w-10 h-14 bg-white/5 rounded-lg"></div>
+                            <div class="flex-1 space-y-2">
+                                <div class="h-3 bg-white/10 rounded w-2/3"></div>
+                                <div class="h-2 bg-white/5 rounded w-1/3"></div>
+                            </div>
+                        </div>
+                        <!-- Stat Loader 4 -->
+                        <div class="flex items-center gap-3">
+                            <div class="w-6 text-slate-600 font-black text-sm">4</div>
+                            <div class="w-10 h-14 bg-white/5 rounded-lg"></div>
+                            <div class="flex-1 space-y-2">
+                                <div class="h-3 bg-white/10 rounded w-2/3"></div>
+                                <div class="h-2 bg-white/5 rounded w-1/3"></div>
+                            </div>
+                        </div>
+                        <!-- Stat Loader 5 -->
+                        <div class="flex items-center gap-3">
+                            <div class="w-6 text-slate-600 font-black text-sm">5</div>
+                            <div class="w-10 h-14 bg-white/5 rounded-lg"></div>
+                            <div class="flex-1 space-y-2">
+                                <div class="h-3 bg-white/10 rounded w-2/3"></div>
+                                <div class="h-2 bg-white/5 rounded w-1/3"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1207,6 +1245,18 @@
 
         // ─── PHASE 2 CHARTS ─────────────────────────────────────────────────────────────
         function buildBasicCharts(stats) {
+            // Populate Deep Dive numerical stats
+            const elVelocity = document.getElementById('stat-binge-velocity');
+            if (elVelocity && stats.avg_hours_to_watch !== undefined) elVelocity.innerText = stats.avg_hours_to_watch + 'h';
+
+            const elCompletion = document.getElementById('stat-completion');
+            if (elCompletion && stats.counts?.completion_rate !== undefined) elCompletion.innerText = stats.counts.completion_rate + '%';
+
+            const elPersona = document.getElementById('stat-persona');
+            if (elPersona && stats.persona) {
+                elPersona.innerText = stats.persona.name;
+            }
+
             // Re-render Basic Charts that were deferred (Format, Era, Runtime)
             const fmtTotal = (stats.counts?.movies || 0) + (stats.counts?.series || 0);
 
@@ -1277,6 +1327,137 @@
         function loadAnalytics() {
             init(); // Refresh data grid based on newly selected value
         }
+
+        // ------- WEEKLY STATS -------
+        let _weeklyStatsData = null;
+        let _activeWeek = 'this_week';
+        let _activeCategory = 'movies';
+
+        async function loadWeeklyStats() {
+            try {
+                // Ensure we use the correct user.id from the template instead of hitting the authed endpoint
+                const res = await fetch(`/api/public/stats/weekly/{{ user.id }}`);
+                if (!res || !res.ok) return;
+                _weeklyStatsData = await res.json();
+                showWeeklyStats('this_week');
+            } catch (e) {
+                console.error("Weekly stats failed to load", e);
+            }
+        }
+
+        function showWeeklyStats(week) {
+            _activeWeek = week;
+            ['this_week', 'last_week'].forEach(w => {
+                const btn = document.getElementById(`btn-${w.replace('_', '-')}`);
+                if (!btn) return;
+                if (w === week) {
+                    btn.className = 'px-3 py-1.5 text-xs font-bold rounded-full transition-all bg-emerald-500 text-white';
+                } else {
+                    btn.className = 'px-3 py-1.5 text-xs font-bold rounded-full transition-all bg-white/10 text-slate-400 hover:bg-white/20';
+                }
+            });
+            const weekData = _weeklyStatsData ? _weeklyStatsData[week] : null;
+            const labelEl = document.getElementById('weekly-range-label');
+            if (weekData && labelEl) {
+                labelEl.textContent = weekData.week_label ? `${week === 'this_week' ? 'This Week' : 'Last Week'} · ${weekData.total_watched} titles watched` : '';
+            }
+            showWeeklyCategory(_activeCategory);
+        }
+
+        function showWeeklyCategory(category) {
+            _activeCategory = category;
+            ['movies', 'actors', 'directors'].forEach(c => {
+                const btn = document.getElementById(`wcat-${c}`);
+                if (!btn) return;
+                if (c === category) {
+                    btn.className = 'flex-1 py-3 text-xs font-bold uppercase tracking-wider text-white border-b-2 border-emerald-500 transition-all';
+                } else {
+                    btn.className = 'flex-1 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 border-b-2 border-transparent transition-all hover:text-white';
+                }
+            });
+
+            const list = document.getElementById('weekly-top5-list');
+            if (!list) return;
+
+            const weekData = _weeklyStatsData ? _weeklyStatsData[_activeWeek] : null;
+            const lastWeekData = _weeklyStatsData ? _weeklyStatsData['last_week'] : null;
+            if (!weekData) {
+                list.innerHTML = '<div class="py-8 text-center text-slate-500 text-sm">No data for this week.</div>';
+                return;
+            }
+
+            let items = [];
+            let lastItems = [];
+            if (category === 'movies') {
+                items = weekData.top_movies || [];
+                lastItems = (lastWeekData?.top_movies || []);
+            } else if (category === 'actors') {
+                items = weekData.top_actors || [];
+                lastItems = (lastWeekData?.top_actors || []);
+            } else if (category === 'directors') {
+                items = weekData.top_directors || [];
+                lastItems = (lastWeekData?.top_directors || []);
+            }
+
+            if (items.length === 0) {
+                list.innerHTML = `<div class="py-8 text-center text-slate-500 text-sm">No ${category} data found for this period.</div>`;
+                return;
+            }
+
+            list.innerHTML = items.map((item, index) => {
+                let name = item.name || item.title;
+                let isNew = false;
+                let rankDiffHtml = '<span class="text-xs text-slate-500">-</span>';
+
+                // Trend logic
+                const lastIdx = lastItems.findIndex(i => (i.name || i.title) === name);
+                if (lastIdx === -1) {
+                    isNew = true;
+                    rankDiffHtml = '<span class="text-[10px] font-bold text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded">NEW</span>';
+                } else {
+                    const diff = lastIdx - index;
+                    if (diff > 0) rankDiffHtml = `<span class="text-[10px] font-bold text-emerald-400 flex items-center"><i data-lucide="arrow-up" class="w-3 h-3"></i>${diff}</span>`;
+                    else if (diff < 0) rankDiffHtml = `<span class="text-[10px] font-bold text-red-400 flex items-center"><i data-lucide="arrow-down" class="w-3 h-3"></i>${Math.abs(diff)}</span>`;
+                }
+
+                if (category === 'movies') {
+                    const img = item.poster_path ? `https://image.tmdb.org/t/p/w154${item.poster_path}` : 'https://placehold.co/100x150?text=No+Poster';
+                    return `
+                    <div class="flex items-center justify-between p-2 hover:bg-white/5 rounded-xl transition-colors cursor-pointer group" onclick="window.open('https://google.com/search?q=${name.replace(/'/g, "\\'")}', '_blank')">
+                        <div class="flex items-center gap-4">
+                            <div class="w-6 text-center font-black text-slate-500 text-lg group-hover:text-white transition-colors">${index + 1}</div>
+                            <img src="${img}" class="w-10 h-14 object-cover rounded shadow">
+                            <div>
+                                <h4 class="font-bold text-white text-sm line-clamp-1 group-hover:text-indigo-300 transition-colors">${name}</h4>
+                                <div class="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
+                                    <span class="bg-white/10 px-1.5 py-0.5 rounded text-slate-300 uppercase tracking-wider">${item.media_type || 'MOVIE'}</span>
+                                    ${item.rating ? `<span class="text-yellow-500 flex items-center gap-0.5"><i data-lucide="star" class="w-2.5 h-2.5 fill-current"></i>${item.rating}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex-shrink-0 ml-2">${rankDiffHtml}</div>
+                    </div>`;
+                } else {
+                    return `
+                    <div class="flex items-center justify-between p-3 hover:bg-white/5 rounded-xl transition-colors cursor-pointer group" onclick="window.open('https://google.com/search?q=${name.replace(/'/g, "\\'")}', '_blank')">
+                        <div class="flex items-center gap-4">
+                            <div class="w-6 text-center font-black text-slate-500 text-lg group-hover:text-white transition-colors">${index + 1}</div>
+                            <div>
+                                <h4 class="font-bold text-white text-sm line-clamp-1 group-hover:text-emerald-300 transition-colors">${name}</h4>
+                                <div class="text-[10px] text-slate-500 mt-0.5">${item.count} items watched</div>
+                            </div>
+                        </div>
+                        <div class="flex-shrink-0 ml-2">${rankDiffHtml}</div>
+                    </div>`;
+                }
+            }).join('');
+            if (window.lucide) lucide.createIcons();
+        }
+
+        // Auto-load weekly stats on load
+        document.addEventListener("DOMContentLoaded", () => {
+            loadWeeklyStats();
+        });
 
     </script>
 </body>
