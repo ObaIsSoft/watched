@@ -5,7 +5,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exported List - Watched V2</title>
+    <!-- Tailwind CSS (via CDN for simplicity) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Mute Tailwind's production CDN warning
+        const originalWarn = console.warn;
+        console.warn = (...args) => {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+            originalWarn(...args);
+        };
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Add html2canvas -->
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>

@@ -5,7 +5,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ playlist.name }} - Watched V2</title>
+    <!-- Tailwind CSS (via CDN for simplicity, verify with user if local is needed) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Mute Tailwind's production CDN warning
+        const originalWarn = console.warn;
+        console.warn = (...args) => {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+            originalWarn(...args);
+        };
+    </script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Add html2canvas -->
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
@@ -218,7 +229,7 @@
                 header.style.marginBottom = mode === 'social' ? '30px' : '60px';
                 header.style.textAlign = 'center';
 
-                const titleText = `{{ playlist.name | replace("`", "\\`") | safe }}`;
+                const titleText = '{{ playlist.name | replace("\'", "\\\'") | safe }}';
                 const countText = mode === 'social' ? `Top ${targetItems.length}` : `${targetItems.length} Films`;
 
                 header.innerHTML = `

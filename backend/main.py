@@ -2508,6 +2508,10 @@ async def fetch_trending_content():
         res = await client.get(url, params={"api_key": TMDB_API_KEY})
         return res.json().get('results', [])[:12] if res.status_code == 200 else []
 
+@app.get("/api/trending")
+async def get_trending_content():
+    return await fetch_trending_content()
+
 @app.post("/api/onboarding/complete")
 def complete_onboarding(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     current_user.has_completed_onboarding = True

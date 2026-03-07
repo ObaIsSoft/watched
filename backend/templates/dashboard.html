@@ -8,6 +8,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Tailwind CSS (via CDN for simplicity, verify with user if local is needed) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Mute Tailwind's production CDN warning
+        const originalWarn = console.warn;
+        console.warn = (...args) => {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+            originalWarn(...args);
+        };
+    </script>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -2661,8 +2669,8 @@
             return `
                 <div id="feed-item-${item.id}" class="glass rounded-xl p-4 flex gap-4 items-start animate-swing group/item">
                     <div class="relative flex-shrink-0 cursor-pointer" onclick="openUserProfile(${item.user_id})">
-                        <img src="${item.poster_path ? 'https://image.tmdb.org/t/p/w200' + item.poster_path : 'https://via.placeholder.com/100'}" 
-                             class="w-16 h-24 object-cover rounded shadow-lg">
+                        <img src="${item.poster_path ? 'https://image.tmdb.org/t/p/w200' + item.poster_path : FALLBACK_POSTER}" 
+                             class="w-12 h-16 rounded object-cover shadow shadow-black/50">
                         <div class="absolute -bottom-2 -right-2 w-8 h-8 rounded-full border-2 border-slate-900 overflow-hidden bg-slate-800 hover:scale-110 transition-transform">
                              <img src="${item.user_picture}" class="w-full h-full object-cover">
                         </div>
@@ -3275,7 +3283,7 @@
                 });
         }
 
-        async function init() {
+        async function loadTrending() {
             // Check Auth
             // Check Auth
             let token = localStorage.getItem('access_token');
@@ -4490,7 +4498,6 @@
             // Get all unique genres from FULL history (not just watched)
             // But usually we filter history. Watchlist too?
             // Let's use window.historyData and window.watchlistData combined or just history?
-            // The prompt implies filtering "Lists". Let's support both if possible.
             // For now, let's derive genres from History as it has more data usually.
 
             const allItems = [...(window.historyData || []), ...(window.watchlistData || [])];
@@ -6614,10 +6621,9 @@
             container.innerHTML = Array.from({ length: 8 }, () => `<div class="flex-shrink-0 w-32 h-48 bg-white/5 rounded-xl animate-pulse"></div>`).join('');
 
             try {
-                const res = await fetch(`https://api.themoviedb.org/3/trending/all/week?api_key=4e44d9029b1270a757cddc766a1bcb63`);
+                const res = await authFetch(`/api/trending`);
                 if (!res.ok) throw new Error('fetch failed');
-                const data = await res.json();
-                const results = (data.results || []).slice(0, 10);
+                const results = await res.json();
 
                 if (results.length === 0) {
                     container.innerHTML = '<div class="text-slate-500 text-sm">No trending content available.</div>';

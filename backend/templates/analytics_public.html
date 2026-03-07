@@ -8,6 +8,14 @@
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <!-- Tailwind CSS (via CDN for simplicity, verify with user if local is needed) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Mute Tailwind's production CDN warning
+        const originalWarn = console.warn;
+        console.warn = (...args) => {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+            originalWarn(...args);
+        };
+    </script>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&amp;display=swap"
         rel="stylesheet" />
