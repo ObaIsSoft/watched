@@ -2442,16 +2442,17 @@ async def get_recommendations(db: Session = Depends(get_db), current_user: User 
 
 
 @app.get("/api/stats/weekly")
-def get_weekly_stats(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """Returns top 5 movies, actors, directors for this week and last week."""
+def get_weekly_stats(offset_weeks: int = 0, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Returns top 5 movies, actors, directors for a dynamically requested week."""
     from datetime import timedelta
     now = datetime.utcnow()
     
     # Week boundaries (starts Monday)
-    week_start = now - timedelta(days=now.weekday())
-    week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
-    last_week_start = week_start - timedelta(weeks=1)
-    last_week_end = week_start
+    current_week_start = now - timedelta(days=now.weekday())
+    current_week_start = current_week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    target_week_start = current_week_start - timedelta(weeks=offset_weeks)
+    target_week_end = target_week_start + timedelta(weeks=1) if offset_weeks > 0 else now
     
     def get_week_stats(start, end):
         history = db.query(WatchHistory).filter(
@@ -2467,29 +2468,30 @@ def get_weekly_stats(db: Session = Depends(get_db), current_user: User = Depends
         
         for item in history:
             if item.cast:
-                try:
-                    # Parse the JSON list of cast objects
-                    cast_list = json.loads(item.cast)
-                    for c in cast_list:
-                        name = c.get('name')
-                        if name: cast_c[name] += 1
-                except:
-                    # Fallback if it's stored as simple string or comma-separated
+                if item.cast.strip().startswith('['):
+                    try:
+                        cast_list = json.loads(item.cast)
+                        for c in cast_list:
+                            name = c.get('name')
+                            if name: cast_c[name] += 1
+                    except:
+                        pass
+                else:
                     for c in item.cast.split(','):
                         c = c.strip()
                         if c: cast_c[c] += 1
                         
             if item.crew:
-                try:
-                    # Parse the JSON list of crew objects, extracting the director
-                    crew_list = json.loads(item.crew)
-                    for c in crew_list:
-                        # Only count directors
-                        if c.get('job') == 'Director':
-                            name = c.get('name')
-                            if name: crew_c[name] += 1
-                except:
-                    # Fallback for old comma-separated data
+                if item.crew.strip().startswith('['):
+                    try:
+                        crew_list = json.loads(item.crew)
+                        for c in crew_list:
+                            if c.get('job') == 'Director':
+                                name = c.get('name')
+                                if name: crew_c[name] += 1
+                    except:
+                        pass
+                else:
                     for c in item.crew.split(','):
                         c = c.strip()
                         if c: crew_c[c] += 1
@@ -2503,26 +2505,34 @@ def get_weekly_stats(db: Session = Depends(get_db), current_user: User = Depends
                     "rating": item.rating,
                 })
         
+        # Calculate a friendly date range label
+        end_date = end - timedelta(days=1) if offset_weeks > 0 else now
+        if start.month == end_date.month:
+            label = f"{start.strftime('%d')} - {end_date.strftime('%d %b')}"
+        else:
+            label = f"{start.strftime('%d %b')} - {end_date.strftime('%d %b')}"
+            
         return {
             "top_movies": movies[:5],
             "top_actors": [{"name": n, "count": c} for n, c in cast_c.most_common(5)],
             "top_directors": [{"name": n, "count": c} for n, c in crew_c.most_common(5)],
             "total_watched": len(history),
-            "week_label": start.strftime("%d %b")
+            "week_label": label
         }
     
-    return {
-        "this_week": get_week_stats(week_start, now),
-        "last_week": get_week_stats(last_week_start, last_week_end),
-    }
+    return get_week_stats(target_week_start, target_week_end)
 
 @app.get("/api/public/stats/weekly/{user_id}")
-def get_public_weekly_stats(user_id: int, db: Session = Depends(get_db)):
-    # Same logic as get_weekly_stats but for a specific user ID
+def get_public_weekly_stats(user_id: int, offset_weeks: int = 0, db: Session = Depends(get_db)):
+    """Returns top 5 movies, actors, directors for a dynamically requested week for a specific public user."""
     now = datetime.utcnow()
-    week_start = now - timedelta(days=7)
-    last_week_start = week_start - timedelta(days=7)
-    last_week_end = week_start
+    
+    # Week boundaries (starts Monday)
+    current_week_start = now - timedelta(days=now.weekday())
+    current_week_start = current_week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    target_week_start = current_week_start - timedelta(weeks=offset_weeks)
+    target_week_end = target_week_start + timedelta(weeks=1) if offset_weeks > 0 else now
 
     def get_week_stats(start, end):
         history = db.query(WatchHistory).filter(
@@ -2538,24 +2548,30 @@ def get_public_weekly_stats(user_id: int, db: Session = Depends(get_db)):
         
         for item in history:
             if item.cast:
-                try:
-                    cast_list = json.loads(item.cast)
-                    for c in cast_list:
-                        name = c.get('name')
-                        if name: cast_c[name] += 1
-                except:
+                if item.cast.strip().startswith('['):
+                    try:
+                        cast_list = json.loads(item.cast)
+                        for c in cast_list:
+                            name = c.get('name')
+                            if name: cast_c[name] += 1
+                    except:
+                        pass
+                else:
                     for c in item.cast.split(','):
                         c = c.strip()
                         if c: cast_c[c] += 1
                         
             if item.crew:
-                try:
-                    crew_list = json.loads(item.crew)
-                    for c in crew_list:
-                        if c.get('job') == 'Director':
-                            name = c.get('name')
-                            if name: crew_c[name] += 1
-                except:
+                if item.crew.strip().startswith('['):
+                    try:
+                        crew_list = json.loads(item.crew)
+                        for c in crew_list:
+                            if c.get('job') == 'Director':
+                                name = c.get('name')
+                                if name: crew_c[name] += 1
+                    except:
+                        pass
+                else:
                     for c in item.crew.split(','):
                         c = c.strip()
                         if c: crew_c[c] += 1
@@ -2569,18 +2585,22 @@ def get_public_weekly_stats(user_id: int, db: Session = Depends(get_db)):
                     "rating": item.rating,
                 })
         
+        # Calculate a friendly date range label
+        end_date = end - timedelta(days=1) if offset_weeks > 0 else now
+        if start.month == end_date.month:
+            label = f"{start.strftime('%d')} - {end_date.strftime('%d %b')}"
+        else:
+            label = f"{start.strftime('%d %b')} - {end_date.strftime('%d %b')}"
+            
         return {
             "top_movies": movies[:5],
             "top_actors": [{"name": n, "count": c} for n, c in cast_c.most_common(5)],
             "top_directors": [{"name": n, "count": c} for n, c in crew_c.most_common(5)],
             "total_watched": len(history),
-            "week_label": start.strftime("%d %b")
+            "week_label": label
         }
     
-    return {
-        "this_week": get_week_stats(week_start, now),
-        "last_week": get_week_stats(last_week_start, last_week_end),
-    }
+    return get_week_stats(target_week_start, target_week_end)
 
 async def fetch_trending_content():
     async with httpx.AsyncClient() as client:

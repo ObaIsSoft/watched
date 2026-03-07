@@ -898,13 +898,15 @@
                                         <i data-lucide="share" class="w-4 h-4"></i>
                                     </button>
                                     <div class="h-6 w-px bg-white/10 mx-1"></div>
-                                    <button onclick="showWeeklyStats('this_week')" id="btn-this-week"
-                                        class="px-3 py-1.5 text-xs font-bold rounded-full transition-all bg-emerald-500 text-white shrink-0">
-                                        This Week
+                                    <button onclick="changeWeekOffset(1)" id="btn-prev-week"
+                                        class="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                                        title="Previous Week">
+                                        <i data-lucide="chevron-left" class="w-4 h-4"></i>
                                     </button>
-                                    <button onclick="showWeeklyStats('last_week')" id="btn-last-week"
-                                        class="px-3 py-1.5 text-xs font-bold rounded-full transition-all bg-white/10 text-slate-400 hover:bg-white/20 shrink-0">
-                                        Last Week
+                                    <button onclick="changeWeekOffset(-1)" id="btn-next-week"
+                                        class="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                        title="Next Week" disabled>
+                                        <i data-lucide="chevron-right" class="w-4 h-4"></i>
                                     </button>
                                 </div>
                             </div>
@@ -2399,34 +2401,48 @@
 
         // ------- WEEKLY STATS -------
         let _weeklyStatsData = null;
-        let _activeWeek = 'this_week';
+        let _lastWeeklyStatsData = null;
+        let _currentWeekOffset = 0;
         let _activeCategory = 'movies';
 
         async function loadWeeklyStats() {
-            const res = await authFetch('/api/stats/weekly');
+            const res = await authFetch(`/api/stats/weekly?offset_weeks=${_currentWeekOffset}`);
             if (!res || !res.ok) return;
             _weeklyStatsData = await res.json();
-            showWeeklyStats('this_week');
+
+            // Fetch last week's data purely to calculate the Movement Badges if we are looking at 'This Week'
+            if (_currentWeekOffset === 0) {
+                const resLast = await authFetch(`/api/stats/weekly?offset_weeks=1`);
+                if (resLast && resLast.ok) _lastWeeklyStatsData = await resLast.json();
+            } else {
+                _lastWeeklyStatsData = null;
+            }
+
+            updateWeeklyLabels();
+            showWeeklyCategory(_activeCategory);
         }
 
-        function showWeeklyStats(week) {
-            _activeWeek = week;
-            ['this_week', 'last_week'].forEach(w => {
-                const btn = document.getElementById(`btn-${w.replace('_', '-')}`);
-                if (!btn) return;
-                if (w === week) {
-                    btn.className = 'px-3 py-1.5 text-xs font-bold rounded-full transition-all bg-emerald-500 text-white';
-                } else {
-                    btn.className = 'px-3 py-1.5 text-xs font-bold rounded-full transition-all bg-white/10 text-slate-400 hover:bg-white/20';
-                }
-            });
-            const weekData = _weeklyStatsData ? _weeklyStatsData[week] : null;
+        async function changeWeekOffset(delta) {
+            _currentWeekOffset += delta;
+            if (_currentWeekOffset < 0) _currentWeekOffset = 0;
+
+            const btnNext = document.getElementById('btn-next-week');
+            if (btnNext) btnNext.disabled = _currentWeekOffset === 0;
+
+            // Put list into loading state visually
+            const list = document.getElementById('weekly-top5-list');
+            if (list) list.innerHTML = '<div class="py-12 flex justify-center"><i data-lucide="loader-2" class="w-6 h-6 text-emerald-500 animate-spin"></i></div>';
+            if (window.lucide) lucide.createIcons();
+
+            await loadWeeklyStats();
+        }
+
+        function updateWeeklyLabels() {
             const labelEl = document.getElementById('weekly-range-label');
-            if (weekData && labelEl) {
-                const end = week === 'this_week' ? 'now' : (weekData.week_label ? weekData.week_label + ' – ' + new Date(_weeklyStatsData.this_week?.week_label || '').toLocaleDateString() : '');
-                labelEl.textContent = weekData.week_label ? `${week === 'this_week' ? 'This Week' : 'Last Week'} · ${weekData.total_watched} titles watched` : '';
+            if (_weeklyStatsData && labelEl) {
+                const prefix = _currentWeekOffset === 0 ? 'This Week' : (_currentWeekOffset === 1 ? 'Last Week' : `${_currentWeekOffset} Weeks Ago`);
+                labelEl.textContent = `${prefix} · ${_weeklyStatsData.total_watched} titles watched (${_weeklyStatsData.week_label})`;
             }
-            showWeeklyCategory(_activeCategory);
         }
 
         function showWeeklyCategory(category) {
@@ -2444,8 +2460,9 @@
             const list = document.getElementById('weekly-top5-list');
             if (!list) return;
 
-            const weekData = _weeklyStatsData ? _weeklyStatsData[_activeWeek] : null;
-            const lastWeekData = _weeklyStatsData ? _weeklyStatsData['last_week'] : null;
+            const weekData = _weeklyStatsData;
+            const lastWeekData = _lastWeeklyStatsData;
+
             if (!weekData) {
                 list.innerHTML = '<div class="py-8 text-center text-slate-500 text-sm">No data for this week. Start watching!</div>';
                 return;
@@ -2465,7 +2482,7 @@
             }
 
             if (items.length === 0) {
-                list.innerHTML = '<div class="py-8 text-center text-slate-500 text-sm">Nothing logged yet this week.</div>';
+                list.innerHTML = `<div class="py-8 text-center text-slate-500 text-sm">Nothing logged ${category === 'movies' ? 'this week' : 'for this timeframe'}.</div>`;
                 return;
             }
 
@@ -2489,7 +2506,7 @@
             const rankColors = ['text-yellow-400', 'text-slate-300', 'text-amber-600', 'text-slate-500', 'text-slate-500'];
 
             list.innerHTML = items.map((item, i) => {
-                const mv = _activeWeek === 'this_week' ? getMovement(item, i) : { emoji: '', label: '', color: '' };
+                const mv = _currentWeekOffset === 0 ? getMovement(item, i) : { emoji: '', label: '', color: '' };
                 const movementBadge = mv.emoji ? `<span class="text-xs ${mv.color} flex-shrink-0 flex items-center gap-0.5">${mv.emoji}${mv.label ? `<span class="text-[10px]">${mv.label}</span>` : ''}</span>` : '';
 
                 if (category === 'movies') {
@@ -7541,77 +7558,133 @@
 
             const movies = weekData.top_movies || [];
             const actors = weekData.top_actors || [];
+            const directors = weekData.top_directors || []; // Added Directors
             const weekLabel = (weekData.week_label || "THIS WEEK").toUpperCase();
 
             let heroImage = '';
             if (movies.length > 0 && movies[0].poster_path) {
                 heroImage = movies[0].poster_path.startsWith('http')
                     ? movies[0].poster_path
-                    : `https://image.tmdb.org/t/p/original${movies[0].poster_path}`;
+                    : `https://image.tmdb.org/t/p/w1280${movies[0].poster_path}`;
             } else {
                 heroImage = "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=1080&auto=format&fit=crop"; // Cinema fallback
             }
 
-            // Create invisible container matching Spotify 9:16 aspect ratio (1080x1920)
+            const isDesktop = window.innerWidth > 768;
+
+            // Create invisible container dynamically scaled for Desktop (16:9) vs Mobile (9:16)
             const wrapper = document.createElement('div');
             wrapper.style.position = 'fixed';
             wrapper.style.top = '-9999px';
             wrapper.style.left = '-9999px';
-            wrapper.style.width = '1080px';
-            wrapper.style.height = '1920px';
             wrapper.style.backgroundColor = '#5A2922'; // Maroon Spotify Gradient vibe
             wrapper.style.fontFamily = 'Inter, ui-sans-serif, system-ui, -apple-system, sans-serif';
             wrapper.style.display = 'flex';
-            wrapper.style.flexDirection = 'column';
             wrapper.style.overflow = 'hidden';
             wrapper.style.zIndex = '-999';
 
             let moviesHtml = movies.slice(0, 5).map((m, i) => `
-                <div style="display: flex; gap: 20px; margin-bottom: 30px; font-size: 42px; font-weight: 800; color: white; line-height: 1.2;">
-                    <span style="min-width: 45px; color: #f5d0c5;">${i + 1}</span>
-                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 380px;">${m.title}</span>
+                <div style="display: flex; align-items: flex-start; gap: 20px; margin-bottom: ${isDesktop ? '30px' : '20px'}; font-size: ${isDesktop ? '42px' : '28px'}; font-weight: 800; color: white; line-height: 1.4;">
+                    <span style="min-width: ${isDesktop ? '45px' : '30px'}; color: #f5d0c5;">${i + 1}</span>
+                    <span style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: ${isDesktop ? '380px' : '240px'}; padding-bottom: 12px;">${m.title}</span>
                 </div>
             `).join('');
 
             let actorsHtml = actors.slice(0, 5).map((a, i) => `
-                <div style="display: flex; gap: 20px; margin-bottom: 30px; font-size: 42px; font-weight: 800; color: white; line-height: 1.2;">
-                    <span style="min-width: 45px; color: #f5d0c5;">${i + 1}</span>
-                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 380px;">${a.name}</span>
+                <div style="display: flex; align-items: flex-start; gap: 20px; margin-bottom: ${isDesktop ? '30px' : '20px'}; font-size: ${isDesktop ? '42px' : '28px'}; font-weight: 800; color: white; line-height: 1.4;">
+                    <span style="min-width: ${isDesktop ? '45px' : '30px'}; color: #f5d0c5;">${i + 1}</span>
+                    <span style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: ${isDesktop ? '380px' : '240px'}; padding-bottom: 12px;">${a.name}</span>
                 </div>
             `).join('');
 
-            wrapper.innerHTML = `
-                <div style="width: 100%; height: 50%; position: relative;">
-                    <img crossorigin="anonymous" src="${heroImage}" style="width: 100%; height: 100%; object-fit: cover; object-position: center 20%;" />
-                    <div style="position: absolute; inset: 0; background: linear-gradient(to top, #5A2922 0%, transparent 70%);"></div>
+            let directorsHtml = directors.slice(0, 5).map((d, i) => `
+                <div style="display: flex; align-items: flex-start; gap: 20px; margin-bottom: ${isDesktop ? '30px' : '20px'}; font-size: ${isDesktop ? '42px' : '28px'}; font-weight: 800; color: white; line-height: 1.4;">
+                    <span style="min-width: ${isDesktop ? '45px' : '30px'}; color: #f5d0c5;">${i + 1}</span>
+                    <span style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: ${isDesktop ? '380px' : '240px'}; padding-bottom: 12px;">${d.name}</span>
                 </div>
-                
-                <div style="flex: 1; padding: 0 60px; position: relative; z-index: 10; margin-top: -60px; display: flex; flex-direction: column;">
-                    <h1 style="font-size: 150px; font-weight: 900; line-height: 1; margin: 0 0 60px 0; color: #f5d0c5; letter-spacing: -4px;">
-                        ${weekLabel}
-                    </h1>
-                    
-                    <div style="display: flex; gap: 60px; flex: 1;">
-                        <div style="flex: 1; min-width: 0;">
-                            <h2 style="font-size: 44px; font-weight: 400; color: white; margin: 0 0 40px 0;">Top movies</h2>
-                            ${moviesHtml || '<div style="color: rgba(255,255,255,0.4); font-size: 36px; font-weight: 600;">None logged</div>'}
-                        </div>
-                        <div style="flex: 1; min-width: 0;">
-                            <h2 style="font-size: 44px; font-weight: 400; color: white; margin: 0 0 40px 0;">Top actors</h2>
-                            ${actorsHtml || '<div style="color: rgba(255,255,255,0.4); font-size: 36px; font-weight: 600;">None logged</div>'}
-                        </div>
+            `).join('');
+
+            if (isDesktop) {
+                // 1920x1080 Horizontal Layout
+                wrapper.style.width = '1920px';
+                wrapper.style.height = '1080px';
+                wrapper.style.flexDirection = 'row';
+                wrapper.innerHTML = `
+                    <div style="width: 45%; height: 100%; position: relative;">
+                        <img crossorigin="anonymous" src="${heroImage}" style="width: 100%; height: 100%; object-fit: cover; object-position: center;" />
+                        <div style="position: absolute; inset: 0; background: linear-gradient(to right, transparent 50%, #5A2922 100%);"></div>
                     </div>
                     
-                    <div style="position: absolute; bottom: 60px; left: 60px; right: 60px; display: flex; justify-content: space-between; align-items: flex-end; color: #f5d0c5;">
-                        <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="width: 55%; padding: 80px 80px 80px 40px; display: flex; flex-direction: column; position: relative;">
+                        <h1 style="font-size: 150px; font-weight: 900; line-height: 1; margin: 0 0 60px 0; color: #f5d0c5; letter-spacing: -4px;">
+                            ${weekLabel}
+                        </h1>
+                        
+                        <div style="display: flex; gap: 40px; flex: 1;">
+                            <div style="flex: 1; min-width: 0;">
+                                <h2 style="font-size: 38px; font-weight: 500; color: white; margin: 0 0 40px 0;">Top movies</h2>
+                                ${moviesHtml || '<div style="color: rgba(255,255,255,0.4); font-size: 36px; font-weight: 600;">None</div>'}
+                            </div>
+                            <div style="flex: 1; min-width: 0;">
+                                <h2 style="font-size: 38px; font-weight: 500; color: white; margin: 0 0 40px 0;">Top actors</h2>
+                                ${actorsHtml || '<div style="color: rgba(255,255,255,0.4); font-size: 36px; font-weight: 600;">None</div>'}
+                            </div>
+                            <div style="flex: 1; min-width: 0;">
+                                <h2 style="font-size: 38px; font-weight: 500; color: white; margin: 0 0 40px 0;">Directors</h2>
+                                ${directorsHtml || '<div style="color: rgba(255,255,255,0.4); font-size: 36px; font-weight: 600;">None</div>'}
+                            </div>
+                        </div>
+                        
+                        <div style="position: absolute; bottom: 80px; right: 80px; display: flex; align-items: center; gap: 20px; color: #f5d0c5;">
+                            <div style="font-size: 36px; font-weight: 800; letter-spacing: -1px; text-transform: uppercase;">My Cinema Stats</div>
                             <div style="width: 60px; height: 60px; background-color: #f5d0c5; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
                                 <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#5A2922" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l3-9 5 18 3-9h5"/></svg>
                             </div>
                         </div>
-                        <div style="font-size: 36px; font-weight: 800; letter-spacing: -1px; text-transform: uppercase;">My Cinema Stats</div>
                     </div>
-                </div>
-            `;
+                `;
+            } else {
+                // 1080x1920 Vertical Layout
+                wrapper.style.width = '1080px';
+                wrapper.style.height = '1920px';
+                wrapper.style.flexDirection = 'column';
+                wrapper.innerHTML = `
+                    <div style="width: 100%; height: 50%; position: relative;">
+                        <img crossorigin="anonymous" src="${heroImage}" style="width: 100%; height: 100%; object-fit: cover; object-position: center 20%;" />
+                        <div style="position: absolute; inset: 0; background: linear-gradient(to top, #5A2922 0%, transparent 70%);"></div>
+                    </div>
+                    
+                    <div style="flex: 1; padding: 0 50px; position: relative; z-index: 10; margin-top: -60px; display: flex; flex-direction: column;">
+                        <h1 style="font-size: 130px; font-weight: 900; line-height: 1; margin: 0 0 50px 0; color: #f5d0c5; letter-spacing: -3px;">
+                            ${weekLabel}
+                        </h1>
+                        
+                        <div style="display: flex; gap: 25px; flex: 1;">
+                            <div style="flex: 1; min-width: 0;">
+                                <h2 style="font-size: 34px; font-weight: 400; color: white; margin: 0 0 30px 0;">Movies</h2>
+                                ${moviesHtml || '<div style="color: rgba(255,255,255,0.4); font-size: 28px; font-weight: 600;">None</div>'}
+                            </div>
+                            <div style="flex: 1; min-width: 0;">
+                                <h2 style="font-size: 34px; font-weight: 400; color: white; margin: 0 0 30px 0;">Actors</h2>
+                                ${actorsHtml || '<div style="color: rgba(255,255,255,0.4); font-size: 28px; font-weight: 600;">None</div>'}
+                            </div>
+                            <div style="flex: 1; min-width: 0;">
+                                <h2 style="font-size: 34px; font-weight: 400; color: white; margin: 0 0 30px 0;">Directors</h2>
+                                ${directorsHtml || '<div style="color: rgba(255,255,255,0.4); font-size: 28px; font-weight: 600;">None</div>'}
+                            </div>
+                        </div>
+                        
+                        <div style="position: absolute; bottom: 60px; left: 50px; right: 50px; display: flex; justify-content: space-between; align-items: flex-end; color: #f5d0c5;">
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <div style="width: 60px; height: 60px; background-color: #f5d0c5; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#5A2922" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l3-9 5 18 3-9h5"/></svg>
+                                </div>
+                            </div>
+                            <div style="font-size: 34px; font-weight: 800; letter-spacing: -1px; text-transform: uppercase;">My Cinema Stats</div>
+                        </div>
+                    </div>
+                `;
+            }
 
             document.body.appendChild(wrapper);
 
@@ -7623,6 +7696,7 @@
                         if (img.complete) return resolve();
                         img.onload = resolve;
                         img.onerror = resolve; // Continue even if image fails
+                        setTimeout(resolve, 3000); // 3s timeout to prevent infinite hang
                     });
                 }
 
@@ -7645,21 +7719,7 @@
                     document.body.removeChild(a);
                 };
 
-                if (navigator.share) {
-                    try {
-                        const blob = await (await fetch(dataUrl)).blob();
-                        const file = new File([blob], 'cinema_stats.png', { type: 'image/png' });
-                        await navigator.share({
-                            title: 'Cinema Weekly Stats',
-                            text: 'Check out my viewing stats for the week!',
-                            files: [file]
-                        });
-                    } catch (err) {
-                        if (err.name !== 'AbortError') triggerDownload(dataUrl, 'cinema_stats.png');
-                    }
-                } else {
-                    triggerDownload(dataUrl, 'cinema_stats.png');
-                }
+                triggerDownload(dataUrl, 'cinema_stats.png');
             } catch (err) {
                 console.error("Failed to export:", err);
                 if (typeof showToast === 'function') showToast("Failed to export stats.", "error");
