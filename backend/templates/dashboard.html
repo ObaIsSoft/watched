@@ -853,6 +853,11 @@
                                 <option value="all" class="bg-gray-900">All Time</option>
                                 <option value="2025" class="bg-gray-900">2025 Year in Review</option>
                             </select>
+                            <button onclick="shareAnalytics()"
+                                class="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold py-2 px-4 rounded-xl border border-white/10 transition-colors"
+                                id="btn-share-analytics" title="Share your Deep Analytics">
+                                <i data-lucide="share-2" class="w-4 h-4"></i> <span class="hidden md:inline">Share</span>
+                            </button>
                             <button onclick="launchWrapped()"
                                 class="hidden md:flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold py-2 px-6 rounded-full shadow-lg shadow-purple-500/25 transition-transform hover:scale-105"
                                 id="btn-launch-wrapped">
@@ -2016,6 +2021,19 @@
         const API_URL = '';
         const FALLBACK_POSTER = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22200%22%20height%3D%22300%22%20fill%3D%22%231e293b%22%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%2F%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20fill%3D%22%23475569%22%20font-family%3D%22sans-serif%22%20font-size%3D%2214%22%20text-anchor%3D%22middle%22%20alignment-baseline%3D%22middle%22%3ENo%20Image%3C%2Ftext%3E%3C%2Fsvg%3E';
         const FALLBACK_AVATAR = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22150%22%20height%3D%22150%22%20fill%3D%22%231e293b%22%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%2F%3E%3Ccircle%20cx%3D%2275%22%20cy%3D%2260%22%20r%3D%2230%22%20fill%3D%22%23334155%22%2F%3E%3Cpath%20d%3D%22M25%20140%20a50%2050%200%200%201%20100%200%22%20fill%3D%22%23334155%22%2F%3E%3C%2Fsvg%3E';
+
+        function parseJwt(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                return JSON.parse(jsonPayload);
+            } catch (e) {
+                return null;
+            }
+        }
 
         async function authFetch(endpoint, options = {}) {
             const token = localStorage.getItem('access_token');
@@ -3226,6 +3244,28 @@
                     colors: ['#6366f1', '#e2e8f0', '#818cf8']
                 });
             }, 3500);
+        }
+
+        function shareAnalytics() {
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                showToast("You must be logged in to share analytics.");
+                return;
+            }
+            const payload = parseJwt(token);
+            if (!payload || !payload.sub) {
+                showToast("Error retrieving user profile to share.");
+                return;
+            }
+            // FastAPI normally stores the user ID as a string in the "sub" claim
+            const userId = payload.sub;
+            const url = window.location.origin + `/u/${userId}/analytics`;
+            navigator.clipboard.writeText(url)
+                .then(() => showToast("Share Link copied to your clipboard!"))
+                .catch(e => {
+                    console.error(e);
+                    showToast("Failed to copy link.");
+                });
         }
 
         async function init() {

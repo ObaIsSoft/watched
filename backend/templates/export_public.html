@@ -167,13 +167,16 @@
                 header.style.marginBottom = mode === 'social' ? '30px' : '60px';
                 header.style.textAlign = 'center';
 
-                const titleText = mode === 'social' ? 'Recent Watches' : 'Cinematic Record';
+                const isWatchlist = '{{ title }}'.toLowerCase().includes('watchlist');
+                const titleText = mode === 'social' ?
+                    (isWatchlist ? 'Recent Adds' : 'Recent Watches') :
+                    (isWatchlist ? 'Cinematic Backlog' : 'Cinematic Record');
                 const countText = mode === 'social' ? `Top ${targetItems.length}` : `${targetItems.length} Films`;
 
                 header.innerHTML = `
                     <h1 style="color: white; font-size: ${mode === 'social' ? '42px' : '100px'}; font-weight: 800; margin: 0; letter-spacing: -0.02em;">{{ user.name }}'s ${titleText}</h1>
                     <p style="color: #94a3b8; font-size: ${mode === 'social' ? '24px' : '50px'}; font-weight: 600; margin-top: 10px; text-transform: uppercase; letter-spacing: 0.1em;">
-                        Watched V2 &bull; ${countText}
+                        ${isWatchlist ? 'Watchlist' : 'Watched V2'} &bull; ${countText}
                     </p>
                 `;
                 container.appendChild(header);
