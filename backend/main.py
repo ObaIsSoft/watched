@@ -661,6 +661,20 @@ def read_privacy():
     with open(os.path.join(BASE_DIR, "templates/privacy.html"), "r") as f:
         return f.read()
 
+@app.get("/favicon.ico")
+def get_favicon():
+    svg = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#818cf8;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4f46e5;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" rx="25" fill="url(#grad)" />
+  <path d="M35 25 L35 75 L75 50 Z" fill="white" />
+</svg>'''
+    return Response(content=svg, media_type="image/svg+xml")
+
 @app.get("/login", response_class=HTMLResponse)
 def read_login():
     with open(os.path.join(BASE_DIR, "templates/login.html"), "r") as f:
