@@ -1,11 +1,11 @@
 import httpx
 from typing import Optional
-from fastapi import FastAPI, HTTPException, Depends, File, UploadFile, Request
+from fastapi import FastAPI, HTTPException, Depends, File, UploadFile, Request, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, case, func, Boolean, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, case, func, Boolean, ForeignKey, desc
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session, relationship
 from datetime import datetime, timedelta
@@ -662,6 +662,7 @@ def read_privacy():
         return f.read()
 
 @app.get("/favicon.ico")
+@app.get("/favicon.svg")
 def get_favicon():
     svg = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <defs>
