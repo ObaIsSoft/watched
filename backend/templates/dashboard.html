@@ -856,7 +856,8 @@
                             <button onclick="shareAnalytics()"
                                 class="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold py-2 px-4 rounded-xl border border-white/10 transition-colors"
                                 id="btn-share-analytics" title="Share your Deep Analytics">
-                                <i data-lucide="share-2" class="w-4 h-4"></i> <span class="hidden md:inline">Share</span>
+                                <i data-lucide="share-2" class="w-4 h-4"></i> <span
+                                    class="hidden md:inline">Share</span>
                             </button>
                             <button onclick="launchWrapped()"
                                 class="hidden md:flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold py-2 px-6 rounded-full shadow-lg shadow-purple-500/25 transition-transform hover:scale-105"
@@ -2026,7 +2027,7 @@
             try {
                 const base64Url = token.split('.')[1];
                 const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
                     return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
                 }).join(''));
                 return JSON.parse(jsonPayload);
@@ -3361,12 +3362,6 @@
                 // document.getElementById('history-grid').innerHTML = watched.map(i => renderCard(i, false)).join('');
 
                 // 3. Charts
-
-                // Helper to safe destroy
-                const destroyChart = (id) => {
-                    const c = Chart.getChart(id);
-                    if (c) c.destroy();
-                };
 
                 // ── A. TOP GENRES — Animated Horizontal Progress Bars ─────────────────
                 const genreColors = [
@@ -7316,6 +7311,12 @@
         }
 
         // ─── PHASE 2 CHARTS ─────────────────────────────────────────────────────────────
+
+        // Helper to safe destroy
+        const destroyChart = (id) => {
+            const c = Chart.getChart(id);
+            if (c) c.destroy();
+        };
 
         async function initPhase2Charts(stats) {
             buildBasicCharts(stats);
