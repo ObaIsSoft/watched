@@ -7677,8 +7677,8 @@
 
             await new Promise(r => setTimeout(r, 100));
 
-            // Pull raw data
-            const weekData = _weeklyStatsData ? _weeklyStatsData[_activeWeek] : null;
+            // Pull raw data — _weeklyStatsData IS the direct API response object
+            const weekData = _weeklyStatsData || null;
             if (!weekData) {
                 showToast("No data to export.", "error");
                 btn.innerHTML = originalHTML;
@@ -7686,10 +7686,10 @@
                 return;
             }
 
-            const movies = weekData.top_movies || [];
-            const actors = weekData.top_actors || [];
-            const directors = weekData.top_directors || []; // Added Directors
-            const weekLabel = (weekData.week_label || "THIS WEEK").toUpperCase();
+            const movies    = weekData.top_movies   || [];
+            const actors    = weekData.top_actors   || [];
+            const directors = weekData.top_directors || [];
+            const weekLabel = (weekData.week_label || 'THIS WEEK').toUpperCase();
 
             let heroImage = '';
             if (movies.length > 0 && movies[0].poster_path) {
@@ -7697,124 +7697,81 @@
                     ? movies[0].poster_path
                     : `https://image.tmdb.org/t/p/w1280${movies[0].poster_path}`;
             } else {
-                heroImage = "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=1080&auto=format&fit=crop"; // Cinema fallback
+                heroImage = 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=1080&auto=format&fit=crop';
             }
 
-            const isDesktop = window.innerWidth > 768;
+            // NOTE: html2canvas cannot load web fonts like Inter.
+            // We must use a system font stack so text renders cleanly.
+            const FONT        = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+            const HEADING_FONT = 'Georgia, "Times New Roman", Times, serif';
+            const ACCENT = '#f0c8ba';
+            const BG     = '#150806';
+            const DIM    = 'rgba(255,255,255,0.35)';
 
-            // Create invisible container dynamically scaled for Desktop (16:9) vs Mobile (9:16)
+            // JS truncation — no css overflow:hidden (causes mid-char cuts in canvas)
+            const trunc = (s, n) => s && s.length > n ? s.slice(0, n).trimEnd() + '…' : (s || '—');
+
+            // Wrapper setup — always target 1920×1080 (landscape shareable card)
             const wrapper = document.createElement('div');
-            wrapper.style.position = 'fixed';
-            wrapper.style.top = '-9999px';
-            wrapper.style.left = '-9999px';
-            wrapper.style.backgroundColor = '#5A2922'; // Maroon Spotify Gradient vibe
-            wrapper.style.fontFamily = 'Inter, ui-sans-serif, system-ui, -apple-system, sans-serif';
-            wrapper.style.display = 'flex';
-            wrapper.style.overflow = 'hidden';
-            wrapper.style.zIndex = '-999';
+            wrapper.style.position       = 'fixed';
+            wrapper.style.top            = '-9999px';
+            wrapper.style.left           = '-9999px';
+            wrapper.style.width          = '1920px';
+            wrapper.style.height         = '1080px';
+            wrapper.style.backgroundColor = BG;
+            wrapper.style.fontFamily     = FONT;
+            wrapper.style.display        = 'flex';
+            wrapper.style.flexDirection  = 'row';
+            wrapper.style.overflow       = 'hidden';
+            wrapper.style.zIndex         = '-999';
 
-            let moviesHtml = movies.slice(0, 5).map((m, i) => `
-                <div style="display: flex; align-items: flex-start; gap: 20px; margin-bottom: ${isDesktop ? '30px' : '20px'}; font-size: ${isDesktop ? '42px' : '28px'}; font-weight: 800; color: white; line-height: 1.4;">
-                    <span style="min-width: ${isDesktop ? '45px' : '30px'}; color: #f5d0c5;">${i + 1}</span>
-                    <span style="display: block; max-width: ${isDesktop ? '380px' : '240px'}; padding-bottom: 12px; line-height: 1.2;">${m.title.length > (isDesktop ? 26 : 16) ? m.title.substring(0, (isDesktop ? 26 : 16)) + '...' : m.title}</span>
+            // Build rows — no inner overflow:hidden, pure JS truncation
+            const row = (rank, name, isFirst) => `
+                <div style="display:flex;align-items:baseline;gap:18px;padding:16px 0;${isFirst ? '' : 'border-top:1px solid rgba(255,255,255,0.08);'}">
+                    <span style="font-size:15px;font-weight:700;color:${ACCENT};min-width:22px;text-align:right;flex-shrink:0;">${rank}</span>
+                    <span style="font-size:22px;font-weight:600;color:#fff;letter-spacing:-0.3px;">${name}</span>
+                </div>`;
+
+            const colBlock = (label, items, key, maxChars) => `
+                <div style="flex:1;">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:${DIM};margin-bottom:8px;">${label}</div>
+                    ${items.length ? items.slice(0,5).map((it,i) => row(i+1, trunc(it[key], maxChars), i===0)).join('') : `<div style="font-size:20px;color:${DIM};">—</div>`}
+                </div>`;
+
+            wrapper.innerHTML = `
+                <!-- LEFT: Hero poster (45%) -->
+                <div style="width:45%;height:100%;position:relative;flex-shrink:0;">
+                    <img crossorigin="anonymous" src="${heroImage}"
+                         style="width:100%;height:100%;object-fit:cover;object-position:center top;display:block;" />
+                    <div style="position:absolute;inset:0;background:linear-gradient(90deg, transparent 30%, ${BG} 100%);"></div>
+                    <div style="position:absolute;inset:0;background:linear-gradient(to bottom, rgba(21,8,6,0.5) 0%, transparent 40%);"></div>
                 </div>
-            `).join('');
 
-            let actorsHtml = actors.slice(0, 5).map((a, i) => `
-                <div style="display: flex; align-items: flex-start; gap: 20px; margin-bottom: ${isDesktop ? '30px' : '20px'}; font-size: ${isDesktop ? '42px' : '28px'}; font-weight: 800; color: white; line-height: 1.4;">
-                    <span style="min-width: ${isDesktop ? '45px' : '30px'}; color: #f5d0c5;">${i + 1}</span>
-                    <span style="display: block; max-width: ${isDesktop ? '380px' : '240px'}; padding-bottom: 12px; line-height: 1.2;">${a.name.length > (isDesktop ? 26 : 16) ? a.name.substring(0, (isDesktop ? 26 : 16)) + '...' : a.name}</span>
+                <!-- RIGHT: Stats (55%) -->
+                <div style="flex:1;padding:72px 80px 64px 48px;display:flex;flex-direction:column;">
+                    <!-- Week label + subtitle -->
+                    <div style="margin-bottom:48px;">
+                        <div style="font-size:12px;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:${DIM};margin-bottom:14px;">Viewing Stats</div>
+                        <div style="font-size:80px;font-weight:900;line-height:0.95;color:${ACCENT};letter-spacing:-1px;margin-bottom:28px;font-family:${HEADING_FONT};">${weekLabel}</div>
+                        <div style="font-size:16px;color:${DIM};font-weight:400;letter-spacing:1px;text-transform:uppercase;">${weekData.total_watched || 0} titles watched</div>
+                    </div>
+
+                    <!-- 3 columns -->
+                    <div style="display:flex;gap:0;flex:1;">
+                        ${colBlock('Movies',    movies,    'title', 22)}
+                        <div style="width:1px;background:rgba(255,255,255,0.1);margin:0 32px;flex-shrink:0;"></div>
+                        ${colBlock('Actors',    actors,    'name',  22)}
+                        <div style="width:1px;background:rgba(255,255,255,0.1);margin:0 32px;flex-shrink:0;"></div>
+                        ${colBlock('Directors', directors, 'name',  22)}
+                    </div>
+
+                    <!-- Footer branding -->
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding-top:24px;border-top:1px solid rgba(255,255,255,0.1);margin-top:16px;">
+                        <span style="font-size:20px;font-weight:900;letter-spacing:3px;text-transform:uppercase;color:${ACCENT};">watched.</span>
+                        <span style="font-size:14px;color:rgba(255,255,255,0.25);letter-spacing:1px;">watched.onrender.com</span>
+                    </div>
                 </div>
-            `).join('');
-
-            let directorsHtml = directors.slice(0, 5).map((d, i) => `
-                <div style="display: flex; align-items: flex-start; gap: 20px; margin-bottom: ${isDesktop ? '30px' : '20px'}; font-size: ${isDesktop ? '42px' : '28px'}; font-weight: 800; color: white; line-height: 1.4;">
-                    <span style="min-width: ${isDesktop ? '45px' : '30px'}; color: #f5d0c5;">${i + 1}</span>
-                    <span style="display: block; max-width: ${isDesktop ? '380px' : '240px'}; padding-bottom: 12px; line-height: 1.2;">${d.name.length > (isDesktop ? 26 : 16) ? d.name.substring(0, (isDesktop ? 26 : 16)) + '...' : d.name}</span>
-                </div>
-            `).join('');
-
-            if (isDesktop) {
-                // 1920x1080 Horizontal Layout
-                wrapper.style.width = '1920px';
-                wrapper.style.height = '1080px';
-                wrapper.style.flexDirection = 'row';
-                wrapper.innerHTML = `
-                    <div style="width: 45%; height: 100%; position: relative;">
-                        <img crossorigin="anonymous" src="${heroImage}" style="width: 100%; height: 100%; object-fit: cover; object-position: center;" />
-                        <div style="position: absolute; inset: 0; background: linear-gradient(to right, transparent 50%, #5A2922 100%);"></div>
-                    </div>
-                    
-                    <div style="width: 55%; padding: 80px 80px 80px 40px; display: flex; flex-direction: column; position: relative;">
-                        <h1 style="font-size: 150px; font-weight: 900; line-height: 1; margin: 0 0 60px 0; color: #f5d0c5; letter-spacing: -4px;">
-                            ${weekLabel}
-                        </h1>
-                        
-                        <div style="display: flex; gap: 40px; flex: 1;">
-                            <div style="flex: 1; min-width: 0;">
-                                <h2 style="font-size: 38px; font-weight: 500; color: white; margin: 0 0 40px 0;">Top movies</h2>
-                                ${moviesHtml || '<div style="color: rgba(255,255,255,0.4); font-size: 36px; font-weight: 600;">None</div>'}
-                            </div>
-                            <div style="flex: 1; min-width: 0;">
-                                <h2 style="font-size: 38px; font-weight: 500; color: white; margin: 0 0 40px 0;">Top actors</h2>
-                                ${actorsHtml || '<div style="color: rgba(255,255,255,0.4); font-size: 36px; font-weight: 600;">None</div>'}
-                            </div>
-                            <div style="flex: 1; min-width: 0;">
-                                <h2 style="font-size: 38px; font-weight: 500; color: white; margin: 0 0 40px 0;">Directors</h2>
-                                ${directorsHtml || '<div style="color: rgba(255,255,255,0.4); font-size: 36px; font-weight: 600;">None</div>'}
-                            </div>
-                        </div>
-                        
-                        <div style="position: absolute; bottom: 80px; right: 80px; display: flex; align-items: center; gap: 20px; color: #f5d0c5;">
-                            <div style="font-size: 36px; font-weight: 800; letter-spacing: -1px; text-transform: uppercase;">My Cinema Stats</div>
-                            <div style="width: 60px; height: 60px; background-color: #f5d0c5; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#5A2922" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l3-9 5 18 3-9h5"/></svg>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else {
-                // 1080x1920 Vertical Layout
-                wrapper.style.width = '1080px';
-                wrapper.style.height = '1920px';
-                wrapper.style.flexDirection = 'column';
-                wrapper.innerHTML = `
-                    <div style="width: 100%; height: 50%; position: relative;">
-                        <img crossorigin="anonymous" src="${heroImage}" style="width: 100%; height: 100%; object-fit: cover; object-position: center 20%;" />
-                        <div style="position: absolute; inset: 0; background: linear-gradient(to top, #5A2922 0%, transparent 70%);"></div>
-                    </div>
-                    
-                    <div style="flex: 1; padding: 0 50px; position: relative; z-index: 10; margin-top: -60px; display: flex; flex-direction: column;">
-                        <h1 style="font-size: 130px; font-weight: 900; line-height: 1; margin: 0 0 50px 0; color: #f5d0c5; letter-spacing: -3px;">
-                            ${weekLabel}
-                        </h1>
-                        
-                        <div style="display: flex; gap: 25px; flex: 1;">
-                            <div style="flex: 1; min-width: 0;">
-                                <h2 style="font-size: 34px; font-weight: 400; color: white; margin: 0 0 30px 0;">Movies</h2>
-                                ${moviesHtml || '<div style="color: rgba(255,255,255,0.4); font-size: 28px; font-weight: 600;">None</div>'}
-                            </div>
-                            <div style="flex: 1; min-width: 0;">
-                                <h2 style="font-size: 34px; font-weight: 400; color: white; margin: 0 0 30px 0;">Actors</h2>
-                                ${actorsHtml || '<div style="color: rgba(255,255,255,0.4); font-size: 28px; font-weight: 600;">None</div>'}
-                            </div>
-                            <div style="flex: 1; min-width: 0;">
-                                <h2 style="font-size: 34px; font-weight: 400; color: white; margin: 0 0 30px 0;">Directors</h2>
-                                ${directorsHtml || '<div style="color: rgba(255,255,255,0.4); font-size: 28px; font-weight: 600;">None</div>'}
-                            </div>
-                        </div>
-                        
-                        <div style="position: absolute; bottom: 60px; left: 50px; right: 50px; display: flex; justify-content: space-between; align-items: flex-end; color: #f5d0c5;">
-                            <div style="display: flex; align-items: center; gap: 15px;">
-                                <div style="width: 60px; height: 60px; background-color: #f5d0c5; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#5A2922" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l3-9 5 18 3-9h5"/></svg>
-                                </div>
-                            </div>
-                            <div style="font-size: 34px; font-weight: 800; letter-spacing: -1px; text-transform: uppercase;">My Cinema Stats</div>
-                        </div>
-                    </div>
-                `;
-            }
+            `;
 
             document.body.appendChild(wrapper);
 
@@ -7831,8 +7788,8 @@
                 }
 
                 const canvas = await html2canvas(wrapper, {
-                    backgroundColor: '#5A2922',
-                    scale: 1, // Already 1080x1920
+                    backgroundColor: '#150806',
+                    scale: 1,
                     useCORS: true,
                     logging: false,
                     allowTaint: true
