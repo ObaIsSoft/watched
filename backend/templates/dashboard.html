@@ -441,6 +441,144 @@
             animation-play-state: paused;
         }
     </style>
+    <!-- ═══════════════ FLOATING SYNOPSIS PANEL ════════════════ -->
+    <style>
+        #synopsis-panel {
+            position: fixed;
+            z-index: 9999;
+            width: 300px;
+            max-width: 92vw;
+            background: rgba(10, 10, 15, 0.82);
+            backdrop-filter: blur(28px);
+            -webkit-backdrop-filter: blur(28px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 18px;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+            padding: 0;
+            overflow: hidden;
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.95) translateY(6px);
+            transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.25,0.8,0.25,1);
+        }
+        #synopsis-panel.visible {
+            opacity: 1;
+            pointer-events: auto;
+            transform: scale(1) translateY(0);
+        }
+        #synopsis-panel .syn-backdrop {
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center;
+            filter: blur(18px) brightness(0.25) saturate(1.4);
+            transform: scale(1.08);
+            z-index: 0;
+        }
+        #synopsis-panel .syn-body {
+            position: relative;
+            z-index: 1;
+            padding: 16px;
+        }
+        #synopsis-panel .syn-header {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        #synopsis-panel .syn-thumb {
+            width: 60px;
+            height: 88px;
+            border-radius: 8px;
+            object-fit: cover;
+            flex-shrink: 0;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+        }
+        #synopsis-panel .syn-thumb-placeholder {
+            width: 60px;
+            height: 88px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.05);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #synopsis-panel .syn-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
+            line-height: 1.3;
+            margin-bottom: 4px;
+        }
+        #synopsis-panel .syn-meta {
+            font-size: 10px;
+            color: rgba(255,255,255,0.45);
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 6px;
+        }
+        #synopsis-panel .syn-tagline {
+            font-size: 10px;
+            font-style: italic;
+            color: rgba(255,200,100,0.75);
+            margin-bottom: 2px;
+        }
+        #synopsis-panel .syn-overview {
+            font-size: 12px;
+            color: rgba(255,255,255,0.7);
+            line-height: 1.6;
+            max-height: 120px;
+            overflow-y: auto;
+            scrollbar-width: none;
+            margin-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.07);
+            padding-top: 10px;
+        }
+        #synopsis-panel .syn-overview::-webkit-scrollbar { display: none; }
+        #synopsis-panel .syn-footer {
+            margin-top: 10px;
+            font-size: 10px;
+            color: rgba(255,255,255,0.35);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            padding-top: 8px;
+        }
+        #synopsis-panel .syn-cast {
+            font-size: 10px;
+            color: rgba(255,255,255,0.5);
+            margin-top: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #synopsis-panel .syn-loader {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 120px;
+        }
+        @keyframes syn-spin {
+            to { transform: rotate(360deg); }
+        }
+        .syn-spinner {
+            width: 24px; height: 24px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-top-color: rgba(255,255,255,0.6);
+            border-radius: 50%;
+            animation: syn-spin 0.7s linear infinite;
+        }
+    </style>
+
+    <!-- ═══════════════ FLOATING SYNOPSIS PANEL (Global, injected once) ════════════════ -->
+    <div id="synopsis-panel" role="tooltip" aria-live="polite">
+        <div class="syn-backdrop" id="syn-backdrop"></div>
+        <div class="syn-body" id="syn-body">
+            <div class="syn-loader"><div class="syn-spinner"></div></div>
+        </div>
+    </div>
 </head>
 
 <body class="min-h-screen pb-12 selection:bg-indigo-500/30">
@@ -2635,7 +2773,7 @@
             }
 
             return `
-            <div class="glass-premium rounded-2xl overflow-hidden relative group animate-in">
+            <div class="glass-premium rounded-2xl overflow-hidden relative group animate-in" data-syn-tmdb-id="${item.tmdb_id}" data-syn-mt="${item.media_type}" data-syn-poster="${item.poster_path || ''}">
                 <div class="relative aspect-[2/3]">
                     <a href="${googleUrl}" target="_blank" rel="noopener noreferrer" class="block w-full h-full cursor-pointer">
                         <img src="${poster}" alt="${item.title}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
@@ -2676,7 +2814,7 @@
                 : FALLBACK_POSTER;
 
             return `
-                <div class="flex gap-4 items-center p-3 hover:bg-slate-800/50 rounded-lg transition-colors cursor-pointer" onclick="window.open('https://google.com/search?q=${item.title}', '_blank')">
+                <div class="flex gap-4 items-center p-3 hover:bg-slate-800/50 rounded-lg transition-colors cursor-pointer" onclick="window.open('https://google.com/search?q=${item.title}', '_blank')" data-syn-tmdb-id="${item.id}" data-syn-mt="${item.media_type || 'movie'}" data-syn-poster="${item.poster_path || ''}">
                     <img src="${posterUrl}" class="w-12 h-18 rounded object-cover">
                     <div>
                         <h4 class="font-medium text-white">${item.title || item.name}</h4>
@@ -7727,4 +7865,184 @@
     </script>
 </body>
 
+<script>
+// ─── Floating Synopsis System ─────────────────────────────────────────────────
+(function () {
+    'use strict';
+
+    const TMDB_KEY = '{{ tmdb_api_key }}';
+    const panel    = document.getElementById('synopsis-panel');
+    const synBody  = document.getElementById('syn-body');
+    const synBack  = document.getElementById('syn-backdrop');
+    const cache    = {};   // { 'tmdbId_mt': data }
+    let   hoverTimer  = null;
+    let   hideTimer   = null;
+    let   activeCard  = null;
+
+    function positionPanel(card) {
+        const r   = card.getBoundingClientRect();
+        const pw  = 308; // panel width + margin
+        const ph  = 380; // approx panel height
+        const vw  = window.innerWidth;
+        const vh  = window.innerHeight;
+
+        let left, top;
+
+        // Prefer right of card, flip left if not enough room
+        if (r.right + pw + 8 < vw) {
+            left = r.right + 8;
+        } else if (r.left - pw - 8 > 0) {
+            left = r.left - pw - 8;
+        } else {
+            left = Math.max(8, (vw - pw) / 2);
+        }
+
+        // Vertically align to card top, clamp to viewport
+        top = r.top + window.scrollY;
+        const maxTop = window.scrollY + vh - ph - 16;
+        const minTop = window.scrollY + 8;
+        top = Math.min(maxTop, Math.max(minTop, top));
+
+        panel.style.left = left + 'px';
+        panel.style.top  = top  + 'px';
+    }
+
+    function showLoading() {
+        synBack.style.backgroundImage = '';
+        synBody.innerHTML = '<div class="syn-loader"><div class="syn-spinner"></div></div>';
+    }
+
+    function renderSynopsis(data, posterPath) {
+        const thumb   = posterPath ? `https://image.tmdb.org/t/p/w154${posterPath}` : '';
+        const year    = (data.release_date || data.first_air_date || '').slice(0, 4);
+        const runtime = data.runtime ? `${data.runtime}m` : (data.episode_run_time?.[0] ? `~${data.episode_run_time[0]}m/ep` : '');
+        const rating  = data.vote_average ? `★ ${data.vote_average.toFixed(1)}` : '';
+        const genres  = (data.genres || []).slice(0, 3).map(g => g.name).join(' · ');
+        const tagline = data.tagline || '';
+        const overview = data.overview || 'No synopsis available.';
+        const cast    = (data.credits?.cast || []).slice(0, 5).map(c => c.name).join(', ');
+
+        if (thumb) synBack.style.backgroundImage = `url('${thumb}')`;
+
+        synBody.innerHTML = `
+            <div class="syn-header">
+                ${thumb
+                    ? `<img src="${thumb}" class="syn-thumb" loading="lazy" />`
+                    : `<div class="syn-thumb-placeholder"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4"/></svg></div>`
+                }
+                <div style="flex:1;min-width:0">
+                    <div class="syn-title">${data.title || data.name || ''}</div>
+                    <div class="syn-meta">
+                        ${year ? `<span>${year}</span>` : ''}
+                        ${runtime ? `<span>${runtime}</span>` : ''}
+                        ${rating ? `<span style="color:rgba(250,200,60,0.85)">${rating}</span>` : ''}
+                    </div>
+                    ${genres ? `<div class="syn-meta" style="gap:4px">${genres}</div>` : ''}
+                    ${tagline ? `<div class="syn-tagline">"${tagline}"</div>` : ''}
+                </div>
+            </div>
+            <div class="syn-overview">${overview}</div>
+            ${cast ? `<div class="syn-cast">🎭 ${cast}</div>` : ''}
+            <div class="syn-footer">
+                <span>Synopsis</span>
+                <span style="color:rgba(255,255,255,0.2);">TMDB</span>
+            </div>
+        `;
+    }
+
+    async function fetchAndShow(tmdbId, mediaType, card, posterPath) {
+        const key = `${tmdbId}_${mediaType}`;
+        showLoading();
+        panel.classList.add('visible');
+
+        if (cache[key]) {
+            renderSynopsis(cache[key], posterPath);
+            return;
+        }
+
+        try {
+            const url = `https://api.themoviedb.org/3/${mediaType}/${tmdbId}?api_key=${TMDB_KEY}&append_to_response=credits&language=en-US`;
+            const res = await fetch(url);
+            if (res.ok) {
+                const data = await res.json();
+                cache[key] = data;
+                renderSynopsis(data, posterPath);
+            } else {
+                synBody.innerHTML = '<div class="syn-overview" style="min-height:60px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.35)">Could not load synopsis.</div>';
+            }
+        } catch (e) {
+            synBody.innerHTML = '<div class="syn-overview" style="min-height:60px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.35)">Network error.</div>';
+        }
+    }
+
+    function onCardEnter(e) {
+        const card = e.currentTarget;
+        if (activeCard === card) return;
+        clearTimeout(hideTimer);
+        activeCard = card;
+
+        const tmdbId    = card.dataset.synTmdbId;
+        const mediaType = card.dataset.synMt || 'movie';
+        const poster    = card.dataset.synPoster || '';
+        if (!tmdbId) return;
+
+        // 400ms delay before showing — avoids flicker on fast mouse movements
+        hoverTimer = setTimeout(() => {
+            positionPanel(card);
+            fetchAndShow(tmdbId, mediaType, card, poster);
+        }, 400);
+    }
+
+    function onCardLeave(e) {
+        clearTimeout(hoverTimer);
+        // Short grace period so user can move mouse into panel
+        hideTimer = setTimeout(() => {
+            panel.classList.remove('visible');
+            activeCard = null;
+        }, 200);
+    }
+
+    // Keep panel visible when hovering over the panel itself
+    panel.addEventListener('mouseenter', () => clearTimeout(hideTimer));
+    panel.addEventListener('mouseleave', () => {
+        hideTimer = setTimeout(() => {
+            panel.classList.remove('visible');
+            activeCard = null;
+        }, 100);
+    });
+
+    // Global: attach to any card with [data-syn-tmdb-id] when dynamically rendered
+    document.addEventListener('mouseover', function (e) {
+        const card = e.target.closest('[data-syn-tmdb-id]');
+        if (card) onCardEnter({ currentTarget: card });
+    });
+    document.addEventListener('mouseout', function (e) {
+        const card = e.target.closest('[data-syn-tmdb-id]');
+        if (card && !card.contains(e.relatedTarget)) onCardLeave({ currentTarget: card });
+    });
+
+    // On mobile: tap to toggle
+    document.addEventListener('click', function (e) {
+        const card = e.target.closest('[data-syn-tmdb-id]');
+        if (!card) {
+            // Click outside hides panel
+            if (!panel.contains(e.target)) {
+                panel.classList.remove('visible');
+                activeCard = null;
+            }
+            return;
+        }
+    }, true);
+
+    // Reposition on scroll/resize
+    window.addEventListener('scroll', () => {
+        if (activeCard && panel.classList.contains('visible')) positionPanel(activeCard);
+    }, { passive: true });
+    window.addEventListener('resize', () => {
+        if (activeCard && panel.classList.contains('visible')) positionPanel(activeCard);
+    }, { passive: true });
+
+    window._synopsisCache = cache; // expose for debugging
+})();
+</script>
 </html>
