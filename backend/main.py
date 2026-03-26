@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, case, func, Boolean, ForeignKey, desc
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, case, func, Boolean, ForeignKey, desc
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session, relationship
 from datetime import datetime, timedelta
@@ -176,9 +176,13 @@ class PlaylistItem(Base):
 
 # --- MATCH LOGIC ---
 def calculate_compatibility(user_a: User, user_b: User, db: Session) -> int:
-    # 1. Fetch History
-    hist_a = db.query(WatchHistory).filter(WatchHistory.user_id == user_a.id).all()
-    hist_b = db.query(WatchHistory).filter(WatchHistory.user_id == user_b.id).all()
+    # ── Lean projection: only need tmdb_id + genres for compatibility score ──
+    hist_a = db.query(WatchHistory.tmdb_id, WatchHistory.genres).filter(
+        WatchHistory.user_id == user_a.id, WatchHistory.status == 'watched'
+    ).all()
+    hist_b = db.query(WatchHistory.tmdb_id, WatchHistory.genres).filter(
+        WatchHistory.user_id == user_b.id, WatchHistory.status == 'watched'
+    ).all()
     
     if not hist_a or not hist_b:
         return 0
@@ -190,11 +194,13 @@ def calculate_compatibility(user_a: User, user_b: User, db: Session) -> int:
         movies_a.add(h.tmdb_id)
         if h.genres:
             try:
-                g_list = json.loads(h.genres) # List of dicts or strings? 
-                # Log logic saves: "Action, Comedy" string or JSON list of IDs?
-                # Check log_content: it saves `genres=json.dumps([g['name'] for g in data.get('genres', [])])`
-                # So it is a list of strings: ["Action", "Comedy"]
-                genres_a.extend(g_list)
+                # Handle both JSON lists and comma-separated strings
+                raw_g = h.genres.strip()
+                if raw_g.startswith('['):
+                    g_list = json.loads(raw_g)
+                    genres_a.extend([g['name'] if isinstance(g, dict) else str(g) for g in g_list])
+                else:
+                    genres_a.extend([g.strip() for g in raw_g.split(',') if g.strip()])
             except: pass
             
     genres_b = []
@@ -203,8 +209,12 @@ def calculate_compatibility(user_a: User, user_b: User, db: Session) -> int:
         movies_b.add(h.tmdb_id)
         if h.genres:
             try:
-                g_list = json.loads(h.genres)
-                genres_b.extend(g_list)
+                raw_g = h.genres.strip()
+                if raw_g.startswith('['):
+                    g_list = json.loads(raw_g)
+                    genres_b.extend([g['name'] if isinstance(g, dict) else str(g) for g in g_list])
+                else:
+                    genres_b.extend([g.strip() for g in raw_g.split(',') if g.strip()])
             except: pass
 
     # 3. Calculate Scores
@@ -459,11 +469,58 @@ def run_migrations():
                  logging.info("Migrating DB: Adding collaborators to playlists")
                  conn.execute(text("ALTER TABLE playlists ADD COLUMN collaborators VARCHAR DEFAULT '[]'"))
 
+        # ── Phase D: Performance Indexes ────────────────────────────────────────────
+        # These prevent full table scans on the most common query patterns,
+        # reducing Supabase compute and egress significantly.
+        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_history_user_status ON history(user_id, status)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_history_user_watched_at ON history(user_id, watched_at)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_history_tmdb ON history(tmdb_id)"))
+
         conn.commit()
     except Exception as e:
         print(f"Migration Warning: {e}")
     finally:
         conn.close()
+
+# ─── Phase B: Materialized Stats Cache ──────────────────────────────────────
+class UserStatsCache(Base):
+    """Stores pre-computed stats JSON per user. Invalidated on history changes."""
+    __tablename__ = "user_stats_cache"
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True, index=True)
+    stats_json = Column(Text)
+    computed_at = Column(DateTime, default=datetime.utcnow)
+
+def get_or_compute_stats(db: Session, user: User):
+    """Return cached stats if fresh (< 1 hour), otherwise recompute and cache."""
+    try:
+        cache = db.query(UserStatsCache).filter(UserStatsCache.user_id == user.id).first()
+        if cache and (datetime.utcnow() - cache.computed_at).total_seconds() < 3600:
+            return json.loads(cache.stats_json)
+    except Exception:
+        pass  # If cache table doesn't exist yet, fall through
+
+    stats = calculate_user_stats(db, user)
+
+    try:
+        serialised = json.dumps(stats, default=str)
+        if cache:
+            cache.stats_json = serialised
+            cache.computed_at = datetime.utcnow()
+        else:
+            db.add(UserStatsCache(user_id=user.id, stats_json=serialised))
+        db.commit()
+    except Exception:
+        db.rollback()
+
+    return stats
+
+def invalidate_stats_cache(db: Session, user_id: int):
+    """Called whenever a user's history changes so stale cache is cleared."""
+    try:
+        db.query(UserStatsCache).filter(UserStatsCache.user_id == user_id).delete()
+        db.commit()
+    except Exception:
+        db.rollback()
 
 # Create Tables
 Base.metadata.create_all(bind=engine)
@@ -1030,39 +1087,49 @@ def get_leaderboard(scope: str = "global", genre: str = None, db: Session = Depe
         query = query.filter(User.country == current_user.country, User.country.isnot(None))
         
     users = query.all()
+    user_ids = [u.id for u in users]
+    user_map = {u.id: u for u in users}
     leaderboard = []
-    
-    for user in users:
-        # Filter WatchHistory by Genre if requested
-        history_query = db.query(WatchHistory).filter(
-            WatchHistory.user_id == user.id, 
-            WatchHistory.status == 'watched'
-        )
-        
-        if genre and genre != "All":
-            # Loose string matching for genre
-            history_query = history_query.filter(WatchHistory.genres.ilike(f"%{genre}%"))
-            
-        watched = history_query.all()
-        
-        if not watched and genre: continue # Skip user if no history for this genre
-        
-        total_minutes = sum([item.runtime or 0 for item in watched])
+
+    if genre and genre != "All":
+        # Genre-filtered: still need per-row genre check — use lean projection only
+        history_rows = db.query(
+            WatchHistory.user_id,
+            WatchHistory.runtime,
+            WatchHistory.genres,
+        ).filter(
+            WatchHistory.user_id.in_(user_ids),
+            WatchHistory.status == 'watched',
+            WatchHistory.genres.ilike(f"%{genre}%")
+        ).all()
+    else:
+        # ── SINGLE AGGREGATION — eliminates N+1, collapses 1 SELECT * per user ──
+        history_rows = db.query(
+            WatchHistory.user_id,
+            WatchHistory.runtime,
+            WatchHistory.genres,
+        ).filter(
+            WatchHistory.user_id.in_(user_ids),
+            WatchHistory.status == 'watched',
+        ).all()
+
+    # Group by user in Python (very fast since we only fetched 3 columns)
+    user_runtime = {}
+    user_genres = {}
+    for row in history_rows:
+        uid = row.user_id
+        user_runtime[uid] = user_runtime.get(uid, 0) + (row.runtime or 0)
+        genres_list = user_genres.setdefault(uid, [])
+        if row.genres:
+            genres_list.extend([g.strip() for g in row.genres.split(',')])
+
+    for uid, user in user_map.items():
+        if genre and genre != "All" and uid not in user_runtime:
+            continue  # user has no history for this genre
+        total_minutes = user_runtime.get(uid, 0)
         hours = int(total_minutes / 60)
-        
-        # Determine Vibe (Top Genre) - Recalculate based on filtered view or global?
-        # Let's show their Vibe for *this specific genre* (likely the genre itself) or global vibe?
-        # But showing their overall persona is maybe more interesting? 
-        # Let's keep global vibe calculation for context, or just empty if filtered.
-        # Actually, let's just grab their top genre from the *filtered* list to see specifically what sub-genre they like?
-        # No, let's keep it simple: Vibe = Top Genre of the filtered set.
-        
-        genres_list = []
-        for item in watched:
-            if item.genres:
-                genres_list.extend([g.strip() for g in item.genres.split(',')])
+        genres_list = user_genres.get(uid, [])
         top_genre = Counter(genres_list).most_common(1)[0][0] if genres_list else "Newbie"
-        
         leaderboard.append({
             "name": user.name,
             "picture": user.picture,
@@ -1071,7 +1138,7 @@ def get_leaderboard(scope: str = "global", genre: str = None, db: Session = Depe
             "city": user.city or "",
             "country": user.country or ""
         })
-    
+
     # Sort desc
     return sorted(leaderboard, key=lambda x: x['hours'], reverse=True)[:100]
 
@@ -1422,7 +1489,9 @@ async def log_content(request: LogRequest, db: Session = Depends(get_db), curren
         db.add(entry)
 
     db.commit()
-    
+    # Invalidate cached stats so next load recomputes with fresh data
+    invalidate_stats_cache(db, current_user.id)
+
     # GAMIFICATION HOOKS
     try:
         # Only streak/xp if watched
@@ -1455,7 +1524,9 @@ def update_status(id: int, request: UpdateRequest, db: Session = Depends(get_db)
         entry.watched_at = None
         
     db.commit()
-    
+    # Clear cached stats — status change alters watched count, runtime totals, etc.
+    invalidate_stats_cache(db, current_user.id)
+
     # GAMIFICATION HOOKS
     if entry.status == 'watched':
         try:
@@ -1505,10 +1576,12 @@ def delete_entry(id: int, db: Session = Depends(get_db), current_user: User = De
         raise HTTPException(status_code=404, detail="Entry not found")
     
     db.commit()
-    
+    # Invalidate cached stats so next load reflects the deletion
+    invalidate_stats_cache(db, current_user.id)
+
     # Sync XP
     recalculate_xp(current_user, db)
-    
+
     return {"status": "deleted", "id": id}
 
 @app.get("/api/history")
@@ -1626,19 +1699,31 @@ def add_collaborator(id: int, request: CollabRequest, db: Session = Depends(get_
     
 @app.get("/api/stats")
 def get_stats(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return calculate_user_stats(db, current_user)
+    return get_or_compute_stats(db, current_user)
 
 @app.get("/api/public/stats/{uid}")
-def get_public_stats(uid: int, db: Session = Depends(get_db)):
+def get_public_stats(uid: int, db: Session = Depends(get_db), response: Response = None):
     user = db.query(User).filter(User.id == uid).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    # For public stats, we reuse the massive calculation engine but the frontend 
-    # won't render the private stuff like inbox/recommendations
-    return calculate_user_stats(db, user)
+    if response:
+        response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=600"
+    return get_or_compute_stats(db, user)
 
 def calculate_user_stats(db: Session, current_user: User):
-    history = db.query(WatchHistory).filter(WatchHistory.user_id == current_user.id).all()
+    # ── Lean column projection: only fetch what statistics actually need ─────────
+    # Excluded: watch_providers, rewatch_dates, watched_episodes (never read in stats).
+    # cast, crew, keywords MUST stay here — used for Top Actors/Directors/Keywords on dashboard.
+    history = db.query(
+        WatchHistory.id, WatchHistory.title, WatchHistory.tmdb_id,
+        WatchHistory.media_type, WatchHistory.poster_path,
+        WatchHistory.status, WatchHistory.added_at, WatchHistory.watched_at,
+        WatchHistory.rating, WatchHistory.runtime, WatchHistory.year,
+        WatchHistory.genres, WatchHistory.production_companies,
+        WatchHistory.production_countries, WatchHistory.view_count,
+        WatchHistory.seasons_watched,
+        WatchHistory.cast, WatchHistory.crew, WatchHistory.keywords,
+    ).filter(WatchHistory.user_id == current_user.id).all()
     
     # 1. Counts & Basics
     watchlist_count = 0
@@ -1698,29 +1783,76 @@ def calculate_user_stats(db: Session, current_user: User):
         if item.year:
             year_counts[item.year] += 1
             
-        # Studios
+        # Studios — parse safely (JSON array or comma-separated)
         if item.production_companies:
-            for s in item.production_companies.split(','):
-                s = s.strip()
-                if s: studios_count[s] += 1
+            raw_companies = item.production_companies.strip()
+            if raw_companies.startswith('['):
+                try:
+                    company_names = json.loads(raw_companies)
+                    for s in company_names:
+                        s = str(s).strip()
+                        if s: studios_count[s] += 1
+                except:
+                    pass
+            else:
+                for s in item.production_companies.split(','):
+                    s = s.strip()
+                    if s: studios_count[s] += 1
 
-        # Cast
+        # Cast — comma-separated plain string
         if item.cast:
-            for c in item.cast.split(','):
-                c = c.strip()
-                if c: cast_count[c] += 1
+            raw_cast = item.cast.strip()
+            if raw_cast.startswith('['):
+                try:
+                    cast_list = json.loads(raw_cast)
+                    for c in cast_list:
+                        name = c.get('name') if isinstance(c, dict) else str(c)
+                        if name: cast_count[name.strip()] += 1
+                except:
+                    pass
+            else:
+                for c in item.cast.split(','):
+                    c = c.strip()
+                    if c: cast_count[c] += 1
 
-        # Crew (Directors)
+        # Crew — handles JSON ({job/role/department}) and plain comma-separated string
         if item.crew:
-            for c in item.crew.split(','):
-                c = c.strip()
-                if c: crew_count[c] += 1
+            raw_crew = item.crew.strip()
+            if raw_crew.startswith('['):
+                try:
+                    crew_list = json.loads(raw_crew)
+                    for c in crew_list:
+                        if not isinstance(c, dict):
+                            continue
+                        job = c.get('job', '')
+                        role = c.get('role', '')
+                        dept = c.get('department', '')
+                        if job == 'Director' or role == 'Director' or job == 'Directing' or dept == 'Directing':
+                            name = c.get('name')
+                            if name: crew_count[name] += 1
+                except:
+                    pass
+            else:
+                # Plain comma-separated — every entry counted as a director candidate
+                for c in item.crew.split(','):
+                    c = c.strip()
+                    if c: crew_count[c] += 1
 
-        # Keywords
+        # Keywords — comma-separated
         if item.keywords:
-            for k in item.keywords.split(','):
-                k = k.strip()
-                if k: keywords_count[k] += 1
+            raw_kw = item.keywords.strip()
+            if raw_kw.startswith('['):
+                try:
+                    kw_list = json.loads(raw_kw)
+                    for k in kw_list:
+                        k = (k.get('name') if isinstance(k, dict) else str(k)).strip()
+                        if k: keywords_count[k] += 1
+                except:
+                    pass
+            else:
+                for k in item.keywords.split(','):
+                    k = k.strip()
+                    if k: keywords_count[k] += 1
 
         # Countries — normalise to ISO-2 codes so country_distribution is always consistent
         if item.production_countries:
@@ -1795,7 +1927,6 @@ def calculate_user_stats(db: Session, current_user: User):
             daily_activity_map[d_key] = daily_activity_map.get(d_key, 0) + 1
 
     # Computations
-    print(f"DEBUG: Total Runtime Minutes: {total_runtime_minutes} | Watched Count: {watched_count}")
     avg_runtime = total_runtime_minutes / watched_count if watched_count > 0 else 0
     avg_time_to_watch_hours = (avg_runtime / 60)
     
@@ -1953,20 +2084,26 @@ def calculate_user_stats(db: Session, current_user: User):
     # Better: Query Users table for 'minutes_watched' if we stored it? We calculate it dynamically.
     # Let's Skip actual Social Rank calculation for performance and use a placeholder "Top X%" 
     # BUT user asked for "Who has most screen time among friends".
-    # Ok, let's limit to top 5 friends for query.
+    # Limit calculation to top 5 friends for performance
     friend_leaderboard = []
     friend_leaderboard.append({"name": "You", "minutes": year_minutes, "pic": current_user.picture})
-    
-    # Limit calculation to avoid timeout
-    for f in friends[:5]: 
-        friend_user = db.query(User).filter(User.id == f.followed_id).first()
+    friend_ids_5 = [f.followed_id for f in friends[:5]]
+    friend_users = {u.id: u for u in db.query(User).filter(User.id.in_(friend_ids_5)).all()}
+    # Lean projection: only need runtime + watched_at for minute tallying
+    friend_history_rows = db.query(
+        WatchHistory.user_id, WatchHistory.runtime, WatchHistory.watched_at, WatchHistory.status
+    ).filter(
+        WatchHistory.user_id.in_(friend_ids_5),
+        WatchHistory.status == 'watched',
+        WatchHistory.runtime.isnot(None)
+    ).all()
+    for fid in friend_ids_5:
+        friend_user = friend_users.get(fid)
         if friend_user:
-            # Quick calc for friend (expensive!)
-            # Optimization: Just load ALL history for these 5 friends in one query?
-            # Or just use their 'level' as proxy? No.
-            # Let's do a quick query count.
-            f_history = db.query(WatchHistory).filter(WatchHistory.user_id == friend_user.id).all()
-            f_mins = sum([i.runtime for i in f_history if i.status == 'watched' and i.runtime and i.watched_at and i.watched_at.year == current_year])
+            f_mins = sum(
+                r.runtime for r in friend_history_rows
+                if r.user_id == fid and r.watched_at and r.watched_at.year == current_year
+            )
             friend_leaderboard.append({"name": friend_user.name, "minutes": f_mins, "pic": friend_user.picture})
             
     friend_leaderboard.sort(key=lambda x: x['minutes'], reverse=True)
@@ -2293,32 +2430,49 @@ async def get_recommendations(db: Session = Depends(get_db), current_user: User 
     # --- STRATEGY: CONCEPT INTERSECTION & GENRE WEIGHTING ---
     # Goal: "Because you watched X and Y" + Personal Taste Bias
     
-    full_history = db.query(WatchHistory).filter(WatchHistory.user_id == current_user.id).all()
+    # Lean projection — only need these fields to compute recommendation seeds
+    full_history = db.query(
+        WatchHistory.tmdb_id, WatchHistory.media_type, WatchHistory.genres,
+        WatchHistory.status, WatchHistory.watched_at, WatchHistory.added_at,
+        WatchHistory.title,
+    ).filter(WatchHistory.user_id == current_user.id).all()
     if not full_history:
         return await fetch_trending_content()
 
     # Calculate User's Top Genres for Weighting
-    genre_counts = {}
+    # Genres are stored as comma-separated names e.g. "Action, Science Fiction"
+    # We count by name then map to TMDB IDs so we can match against genre_ids in TMDB results.
+    _TMDB_GENRE_NAME_TO_ID = {
+        "Action": 28, "Adventure": 12, "Animation": 16, "Comedy": 35, "Crime": 80,
+        "Documentary": 99, "Drama": 18, "Family": 10751, "Fantasy": 14, "History": 36,
+        "Horror": 27, "Music": 10402, "Mystery": 9648, "Romance": 10749,
+        "Science Fiction": 878, "TV Movie": 10770, "Thriller": 53, "War": 10752,
+        "Western": 37, "Action & Adventure": 10759, "Kids": 10762, "News": 10763,
+        "Reality": 10764, "Sci-Fi & Fantasy": 10765, "Soap": 10766, "Talk": 10767,
+        "War & Politics": 10768,
+    }
+    genre_name_counts = {}
     seen_lookup = set()
     for h in full_history:
         try:
             tid = int(h.tmdb_id)
             mtype = (h.media_type or 'movie').lower()
             seen_lookup.add((tid, mtype))
-            
-            # Count genres
             if getattr(h, 'genres', None):
-                genres = json.loads(h.genres)
-                for g in genres:
-                    if isinstance(g, dict) and 'id' in g:
-                        genre_counts[g['id']] = genre_counts.get(g['id'], 0) + 1
-                    elif isinstance(g, int):
-                        genre_counts[g] = genre_counts.get(g, 0) + 1
+                raw_g = h.genres.strip()
+                if raw_g.startswith('['):
+                    for g in json.loads(raw_g):
+                        name = g.get('name') if isinstance(g, dict) else str(g)
+                        if name: genre_name_counts[name] = genre_name_counts.get(name, 0) + 1
+                else:
+                    for name in raw_g.split(','):
+                        name = name.strip()
+                        if name: genre_name_counts[name] = genre_name_counts.get(name, 0) + 1
         except:
             pass
-            
-    # Get top 3 genre IDs
-    top_genre_ids = {g[0] for g in sorted(genre_counts.items(), key=lambda x: x[1], reverse=True)[:3]}
+    # Map top genre names → TMDB IDs for matching against candidate genre_ids
+    top_names = sorted(genre_name_counts, key=genre_name_counts.get, reverse=True)[:3]
+    top_genre_ids = {_TMDB_GENRE_NAME_TO_ID[n] for n in top_names if n in _TMDB_GENRE_NAME_TO_ID}
 
     # Priority Seeds
     sorted_by_date = sorted(full_history, key=lambda x: x.watched_at or x.added_at or datetime.min, reverse=True)
@@ -2526,8 +2680,11 @@ def get_weekly_stats(offset_weeks: int = 0, db: Session = Depends(get_db), curre
     return get_week_stats(target_week_start, target_week_end)
 
 @app.get("/api/public/stats/weekly/{user_id}")
-def get_public_weekly_stats(user_id: int, offset_weeks: int = 0, db: Session = Depends(get_db)):
+def get_public_weekly_stats(user_id: int, offset_weeks: int = 0, db: Session = Depends(get_db), response: Response = None):
     """Returns top 5 movies, actors, directors for a dynamically requested week for a specific public user."""
+    if response:
+        # Cache for 30 min (historical weeks are immutable; current week may change)
+        response.headers["Cache-Control"] = "public, max-age=1800, stale-while-revalidate=300"
     now = datetime.utcnow()
     
     # Week boundaries (starts Monday)
@@ -3497,14 +3654,20 @@ async def get_scatter_data(db: Session = Depends(get_db), current_user: User = D
     return await calculate_scatter_data(db, current_user)
 
 @app.get("/api/public/analytics/scatter/{uid}")
-async def get_public_scatter_data(uid: int, db: Session = Depends(get_db)):
+async def get_public_scatter_data(uid: int, db: Session = Depends(get_db), response: Response = None):
     user = db.query(User).filter(User.id == uid).first()
     if not user: raise HTTPException(status_code=404, detail="User not found")
+    if response:
+        response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=600"
     return await calculate_scatter_data(db, user)
 
 async def calculate_scatter_data(db: Session, current_user: User):
     # Returns the data for the Rating vs Popularity scatterplot (Critic Curve)
-    rated_items = db.query(WatchHistory).filter(WatchHistory.user_id == current_user.id, WatchHistory.rating > 0).all()
+    # Lean projection — only need 5 columns for this computation
+    rated_items = db.query(
+        WatchHistory.tmdb_id, WatchHistory.media_type,
+        WatchHistory.rating, WatchHistory.title, WatchHistory.poster_path,
+    ).filter(WatchHistory.user_id == current_user.id, WatchHistory.rating > 0).all()
     
     async def fetch_stats(client, item):
         url = f"https://api.themoviedb.org/3/{item.media_type}/{item.tmdb_id}"
