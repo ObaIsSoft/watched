@@ -7961,8 +7961,8 @@
         }
 
         try {
-            const url = `https://api.themoviedb.org/3/${mediaType}/${tmdbId}?api_key=${TMDB_KEY}&append_to_response=credits&language=en-US`;
-            const res = await fetch(url);
+            const url = `/api/tmdb/details/${mediaType}/${tmdbId}`;
+            const res = await authFetch(url);
             if (res.ok) {
                 const data = await res.json();
                 cache[key] = data;

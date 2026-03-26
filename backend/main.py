@@ -1354,6 +1354,13 @@ async def get_tmdb_details(tmdb_id: int, media_type: str):
         response = await client.get(url, params=params)
         return response.json()
 
+@app.get("/api/tmdb/details/{media_type}/{tmdb_id}")
+async def proxy_tmdb_details(media_type: str, tmdb_id: int, response: Response):
+    # Proxy endpoint for the floating synopsis panel
+    res = await get_tmdb_details(tmdb_id, media_type)
+    response.headers["Cache-Control"] = "public, max-age=86400, stale-while-revalidate=3600"
+    return res
+
 
 @app.get("/api/tmdb/tv/{tmdb_id}")
 async def get_tv_details(tmdb_id: int):
