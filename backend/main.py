@@ -1592,8 +1592,20 @@ def delete_entry(id: int, db: Session = Depends(get_db), current_user: User = De
     return {"status": "deleted", "id": id}
 
 @app.get("/api/history")
-def get_history(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return db.query(WatchHistory).filter(WatchHistory.user_id == current_user.id).order_by(WatchHistory.added_at.desc()).all()
+def get_history(db: Session = Depends(get_db), current_user: User = Depends(get_current_user), response: Response = None):
+    # Lean projection: skip large JSON cols (cast/crew/keywords/production_companies) not needed for history list rendering.
+    rows = db.query(
+        WatchHistory.id, WatchHistory.title, WatchHistory.tmdb_id,
+        WatchHistory.media_type, WatchHistory.poster_path,
+        WatchHistory.status, WatchHistory.added_at, WatchHistory.watched_at,
+        WatchHistory.rating, WatchHistory.runtime, WatchHistory.year,
+        WatchHistory.genres, WatchHistory.view_count, WatchHistory.total_episodes,
+        WatchHistory.seasons_watched, WatchHistory.user_id,
+        WatchHistory.production_companies, WatchHistory.production_countries,
+    ).filter(WatchHistory.user_id == current_user.id).order_by(WatchHistory.added_at.desc()).all()
+    if response:
+        response.headers["Cache-Control"] = "private, max-age=30"
+    return [r._asdict() for r in rows]
 
 @app.put("/api/log/{tmdb_id}/rating")
 def update_rating(tmdb_id: int, rating: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -2616,57 +2628,61 @@ def get_weekly_stats(offset_weeks: int = 0, db: Session = Depends(get_db), curre
     target_week_end = target_week_start + timedelta(weeks=1) if offset_weeks > 0 else now
     
     def get_week_stats(start, end):
-        history = db.query(WatchHistory).filter(
+        history = db.query(
+            WatchHistory.id, WatchHistory.title, WatchHistory.tmdb_id,
+            WatchHistory.media_type, WatchHistory.poster_path,
+            WatchHistory.status, WatchHistory.watched_at,
+            WatchHistory.rating, WatchHistory.cast, WatchHistory.crew,
+        ).filter(
             WatchHistory.user_id == current_user.id,
             WatchHistory.status == 'watched',
             WatchHistory.watched_at >= start,
             WatchHistory.watched_at < end
         ).order_by(WatchHistory.watched_at.desc()).all()
+        history = [r._asdict() for r in history]
         
         cast_c = Counter()
         crew_c = Counter()
         movies = []
         
         for item in history:
-            if item.cast:
-                if item.cast.strip().startswith('['):
+            if item.get('cast'):
+                raw = item['cast'].strip()
+                if raw.startswith('['):
                     try:
-                        cast_list = json.loads(item.cast)
-                        for c in cast_list:
+                        for c in json.loads(raw):
                             name = c.get('name')
                             if name: cast_c[name] += 1
                     except:
                         pass
                 else:
-                    for c in item.cast.split(','):
+                    for c in raw.split(','):
                         c = c.strip()
                         if c: cast_c[c] += 1
                         
-            if item.crew:
-                if item.crew.strip().startswith('['):
+            if item.get('crew'):
+                raw = item['crew'].strip()
+                if raw.startswith('['):
                     try:
-                        crew_list = json.loads(item.crew)
-                        for c in crew_list:
-                            job = c.get('job', '')
-                            role = c.get('role', '')
-                            dept = c.get('department', '')
+                        for c in json.loads(raw):
+                            job = c.get('job', ''); role = c.get('role', ''); dept = c.get('department', '')
                             if job == 'Director' or role == 'Director' or job == 'Directing' or dept == 'Directing':
                                 name = c.get('name')
                                 if name: crew_c[name] += 1
                     except:
                         pass
                 else:
-                    for c in item.crew.split(','):
+                    for c in raw.split(','):
                         c = c.strip()
                         if c: crew_c[c] += 1
                         
-            if item.title:
+            if item.get('title'):
                 movies.append({
-                    "title": item.title,
-                    "poster_path": item.poster_path,
-                    "tmdb_id": item.tmdb_id,
-                    "media_type": item.media_type or "movie",
-                    "rating": item.rating,
+                    "title": item['title'],
+                    "poster_path": item.get('poster_path'),
+                    "tmdb_id": item.get('tmdb_id'),
+                    "media_type": item.get('media_type') or "movie",
+                    "rating": item.get('rating'),
                 })
         
         # Calculate a friendly date range label
@@ -2702,57 +2718,61 @@ def get_public_weekly_stats(user_id: int, offset_weeks: int = 0, db: Session = D
     target_week_end = target_week_start + timedelta(weeks=1) if offset_weeks > 0 else now
 
     def get_week_stats(start, end):
-        history = db.query(WatchHistory).filter(
+        history = db.query(
+            WatchHistory.id, WatchHistory.title, WatchHistory.tmdb_id,
+            WatchHistory.media_type, WatchHistory.poster_path,
+            WatchHistory.watched_at, WatchHistory.rating,
+            WatchHistory.cast, WatchHistory.crew,
+        ).filter(
             WatchHistory.user_id == user_id,
             WatchHistory.status == 'watched',
             WatchHistory.watched_at >= start,
             WatchHistory.watched_at < end
         ).order_by(desc(WatchHistory.watched_at)).all()
+        history = [r._asdict() for r in history]
         
         movies = []
         cast_c = Counter()
         crew_c = Counter()
         
         for item in history:
-            if item.cast:
-                if item.cast.strip().startswith('['):
+            if item.get('cast'):
+                raw = item['cast'].strip()
+                if raw.startswith('['):
                     try:
-                        cast_list = json.loads(item.cast)
-                        for c in cast_list:
+                        for c in json.loads(raw):
                             name = c.get('name')
                             if name: cast_c[name] += 1
                     except:
                         pass
                 else:
-                    for c in item.cast.split(','):
+                    for c in raw.split(','):
                         c = c.strip()
                         if c: cast_c[c] += 1
                         
-            if item.crew:
-                if item.crew.strip().startswith('['):
+            if item.get('crew'):
+                raw = item['crew'].strip()
+                if raw.startswith('['):
                     try:
-                        crew_list = json.loads(item.crew)
-                        for c in crew_list:
-                            job = c.get('job', '')
-                            role = c.get('role', '')
-                            dept = c.get('department', '')
+                        for c in json.loads(raw):
+                            job = c.get('job', ''); role = c.get('role', ''); dept = c.get('department', '')
                             if job == 'Director' or role == 'Director' or job == 'Directing' or dept == 'Directing':
                                 name = c.get('name')
                                 if name: crew_c[name] += 1
                     except:
                         pass
                 else:
-                    for c in item.crew.split(','):
+                    for c in raw.split(','):
                         c = c.strip()
                         if c: crew_c[c] += 1
                         
-            if item.title:
+            if item.get('title'):
                 movies.append({
-                    "title": item.title,
-                    "poster_path": item.poster_path,
-                    "tmdb_id": item.tmdb_id,
-                    "media_type": item.media_type or "movie",
-                    "rating": item.rating,
+                    "title": item['title'],
+                    "poster_path": item.get('poster_path'),
+                    "tmdb_id": item.get('tmdb_id'),
+                    "media_type": item.get('media_type') or "movie",
+                    "rating": item.get('rating'),
                 })
         
         # Calculate a friendly date range label

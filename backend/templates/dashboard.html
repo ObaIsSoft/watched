@@ -4362,8 +4362,11 @@
                 }
 
                 if (viewName === 'analytics') {
-                    loadBecauseYouWatched();
-                    loadWeeklyStats();
+                    if (!window.analyticsLoaded) {
+                        loadBecauseYouWatched();
+                        loadWeeklyStats();
+                        window.analyticsLoaded = true;
+                    }
                     if (!window.phase2ChartsLoaded && window.lastStats) {
                         initPhase2Charts(window.lastStats);
                         window.phase2ChartsLoaded = true;
@@ -4651,7 +4654,7 @@
                         }
                     }
                 }
-            }, 30000); // 30s
+            }, 5 * 60 * 1000); // 5 min — reduced from 30s to cut pooler egress
         }
 
         function renderGenrePills() {
